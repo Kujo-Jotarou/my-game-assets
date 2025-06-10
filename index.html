@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Raiders</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            margin: 0;
+            height: 100vh;
+            text-align: center;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #0f0f1b;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(252, 163, 17, 0.5);
+            max-width: 100%;
+            max-height: 80vh;
+            aspect-ratio: 4 / 5;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        #uiContainer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 480px;
+            padding: 10px 0;
+            font-size: 14px;
+        }
+        #lives {
+            color: #ff4d6d;
+            font-weight: bold;
+        }
+        #muteButton {
+            background: #33415c;
+            border: 2px solid #4a5568;
+            color: #e0e0e0;
+            padding: 5px 10px;
+            font-family: inherit;
+            font-size: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 46, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #fff;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s 0.3s, opacity 0.3s linear;
+            z-index: 10;
+        }
+        .screen.active {
+            visibility: visible;
+            opacity: 1;
+            transition: opacity 0.3s linear;
+        }
+        .screen h2 { font-size: 40px; margin-bottom: 20px; color: #fca311; }
+        .screen p { font-size: 20px; margin: 10px 0; }
+        .screen button { background-color: #fca311; color: #1a1a2e; border: none; padding: 15px 30px; font-size: 20px; font-family: inherit; border-radius: 8px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 0 #c87e07; margin-top: 20px; }
+        .screen button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #c87e07; }
+        .screen button:active { transform: translateY(2px); box-shadow: 0 2px 0 #c87e07; }
+        #shareButtons { margin-top: 25px; display: flex; gap: 15px; }
+        #shareButtons a { display: inline-block; padding: 10px 15px; border-radius: 5px; color: white; text-decoration: none; font-size: 14px; transition: transform 0.2s; }
+        #shareButtons a:hover { transform: scale(1.1); }
+        #shareX { background-color: #1DA1F2; }
+        #shareFacebook { background-color: #1877F2; }
+        #shareLine { background-color: #00B900; }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Block Raiders</h1>
+    <div id="uiContainer">
+        <div>
+            <span id="score">SCORE: 0</span><br>
+            <span id="level">LEVEL: 1</span>
+        </div>
+        <div id="lives">LIVES: 3</div>
+        <button id="muteButton">SOUND: ON</button>
+    </div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="480" height="600"></canvas>
+        <div id="startScreen" class="screen active">
+            <h2>Block Raiders</h2>
+            <p>High Score: <span id="startHighScore">0</span></p>
+            <button id="startButton">START GAME</button>
+        </div>
+        <div id="gameOverScreen" class="screen">
+            <h2 id="gameOverTitle">GAME OVER</h2>
+            <p>LEVEL: <span id="resultLevel">1</span></p>
+            <p>SCORE: <span id="resultScore">0</span></p>
+            <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
+            <div id="shareButtons">
+                <a id="shareX" href="#" target="_blank">Xでシェア</a>
+                <a id="shareFacebook" href="#" target="_blank">Facebook</a>
+                <a id="shareLine" href="#" target="_blank">LINE</a>
+            </div>
+            <button id="restartButton">TRY AGAIN</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const levelEl = document.getElementById('level');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const muteButton = document.getElementById('muteButton');
+        
+        const PADDLE_WIDTH = 80, PADDLE_HEIGHT = 28, BARRIER_HEIGHT = 10, PADDLE_Y = canvas.height - 50;
+        const BALL_RADIUS = 7, BALL_SPEED = 4.3;
+        const INVADER_ROWS = 5, INVADER_COLS = 8, INVADER_WIDTH = 36, INVADER_HEIGHT = 24;
+        const INVADER_PADDING = 12, INVADER_OFFSET_TOP = 50, INVADER_OFFSET_LEFT = 30;
+        const INVADER_HITBOX_INSET_X = 4, INVADER_HITBOX_INSET_Y = 2;
+        const LASER_WIDTH = 4, LASER_HEIGHT = 15, LASER_SPEED = 4.3;
+        const ITEM_SIZE = 15, ITEM_SPEED = 1.5;
+        const PLAYER_HITBOX_INSET_X = 15;
+        const PLAYER_HITBOX_INSET_Y = 5;
+        const ITEM_DROP_CHANCE = 0.09; 
+        const MULTIBALL_CHANCE = 0.5;
+        const PIERCE_DURATION = 8000;
+        const SHIELD_EXPAND_DURATION = 10000;
+        const INVINCIBLE_DURATION = 8000;
+
+        let player, balls, invaders, lasers, items, stars;
+        let score, lives, level, highScore = 0;
+        let rightPressed = false, leftPressed = false;
+        let gameStarted = false, gameOver = false, isLevelTransitioning = false;
+        let invadersMoveDirection, invadersMoveDown, invaderSpeed, frameCount;
+        let pierceTimeoutId = null;
+        let shieldTimeoutId = null;
+        let invincibleTimeoutId = null;
+
+        let db, auth, userId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        const sfxBus = new Tone.Channel().toDestination();
+        const melodySynth = new Tone.Synth({volume: -4}).connect(sfxBus);
+        const hitSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1}, volume: -10 }).connect(sfxBus);
+        const destroySynth = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 3, modulationIndex: 10, envelope: { attack: 0.005, decay: 0.2 }, modulationEnvelope: { attack: 0.005, decay: 0.1 }, volume: -6 }).connect(sfxBus);
+        const playerHitSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0}, volume: -8 }).connect(sfxBus);
+        const itemSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.1 }, volume: -6 }).connect(sfxBus);
+        
+        const sounds = {
+            hit: () => { hitSynth.triggerAttackRelease('A5', '32n'); },
+            destroy: () => { destroySynth.triggerAttackRelease("A1", "16n"); },
+            laser: () => {
+                const laserSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 } }).connect(sfxBus);
+                laserSynth.volume.value = -18;
+                const now = Tone.now();
+                laserSynth.triggerAttack(now);
+                laserSynth.frequency.setValueAtTime("A5", now);
+                laserSynth.frequency.rampTo("A4", now + 0.2);
+                laserSynth.triggerRelease(now + 0.2);
+                setTimeout(() => laserSynth.dispose(), 300);
+            },
+            playerHit: () => { playerHitSynth.triggerAttackRelease('G2', '8n'); },
+            getItem: () => { itemSynth.triggerAttackRelease('A5', '16n'); },
+            getMultiBall: () => { itemSynth.triggerAttackRelease('E6', '8n');},
+            getPierce: () => { itemSynth.triggerAttackRelease(['C5', 'G5'], '8n'); },
+            getShield: () => { itemSynth.triggerAttackRelease(['D5', 'A5'], '8n');},
+            getInvincible: () => { itemSynth.triggerAttackRelease(['C6', 'E6', 'G6'], '8n');},
+            gameOver: () => { const now = Tone.now(); melodySynth.triggerAttackRelease('G3', '8n', now); melodySynth.triggerAttackRelease('F#3', '8n', now + 0.1); melodySynth.triggerAttackRelease('F3', '8n', now + 0.2); melodySynth.triggerAttackRelease('E3', '4n', now + 0.3); },
+            win: () => { const now = Tone.now(); melodySynth.triggerAttackRelease('C5', '8n', now); melodySynth.triggerAttackRelease('E5', '8n', now + 0.1); melodySynth.triggerAttackRelease('G5', '8n', now + 0.2); melodySynth.triggerAttackRelease('C6', '4n', now + 0.3); }
+        };
+
+        let bgmElements = [];
+        function stopBGM() {
+            Tone.Transport.stop();
+            Tone.Transport.cancel(0);
+            bgmElements.forEach(elem => elem.dispose());
+            bgmElements = [];
+        }
+        function startBGM() {
+            if (Tone.context.state !== 'running' || Tone.Transport.state === 'started') return;
+            
+            stopBGM();
+
+            const bgmBus = new Tone.Channel({volume: -18, pan: 0}).toDestination();
+            const bass = new Tone.MonoSynth({ oscillator: { type: 'fmsquare' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.4 }, filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.5, baseFrequency: 200, octaves: 4 } }).connect(bgmBus);
+            const arp = new Tone.DuoSynth({ vibratoAmount: 0.1, harmonicity: 1.5, voice0: { oscillator: { type: 'triangle' } }, voice1: { oscillator: { type: 'sawtooth' } } }).connect(bgmBus);
+            arp.volume.value = -12;
+            const kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 10, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' } }).connect(bgmBus);
+            const snare = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).connect(bgmBus);
+            snare.volume.value = -8;
+            const bassLine = ['C2', null, 'C2', ['G1', 'C2'], 'C2', null, 'C2', ['D#2', 'C2']];
+            const drumPattern = [ { time: '0:0', note: 'C1' }, { time: '0:0:3', note: 'C1' }, { time: '0:1', note: 'C1' }, { time: '0:2', note: 'C1' }, { time: '0:2:3', note: 'C1' }, { time: '0:3', note: 'C1' }, { time: '0:3:2', note: 'C1' } ];
+            const snarePattern = [{time: '0:1', note: 'C3'}, {time: '0:3', note: 'C3'}];
+            const bassPart = new Tone.Sequence((time, note) => bass.triggerAttackRelease(note, '8n', time), bassLine, '4n').start(0);
+            const kickPart = new Tone.Part((time, value) => kick.triggerAttackRelease(value.note, '8n', time), drumPattern).start(0);
+            const snarePart = new Tone.Part((time, value) => snare.triggerAttackRelease('C3', '8n', time), snarePattern).start(0);
+            const arpPart = new Tone.Pattern((time, note) => arp.triggerAttackRelease(note, '16n', time), ['C4', 'G4', 'D#4', 'A#4'], 'upDown').start(0);
+            bgmElements = [ bassPart, kickPart, snarePart, arpPart, bass, arp, kick, snare, bgmBus ];
+            Tone.Transport.bpm.value = 160;
+            Tone.Transport.start();
+        }
+
+        async function initializeFirebase() {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app); auth = getAuth(app); setLogLevel('error');
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) { userId = user.uid; await loadHighScore(); }
+                    else { const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; if (token) { await signInWithCustomToken(auth, token); } else { await signInAnonymously(auth); } }
+                });
+            } catch (e) { console.error("Firebase init failed:", e); userId = `local-${crypto.randomUUID()}`; loadHighScore(); }
+        }
+        async function loadHighScore() {
+            if (!userId) return;
+            try {
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/highscores`, "gameData");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) { highScore = docSnap.data().score || 0; }
+            } catch (e) { console.error("Firestore load failed:", e); highScore = parseInt(localStorage.getItem('blockRaidersHighScore') || '0', 10); }
+            document.getElementById('startHighScore').textContent = highScore;
+            document.getElementById('resultHighScore').textContent = highScore;
+        }
+        async function saveHighScore(newScore) {
+            if (!userId) return;
+            try { await setDoc(doc(db, `artifacts/${appId}/users/${userId}/highscores`, "gameData"), { score: newScore }); }
+            catch (e) { console.error("Firestore save failed:", e); localStorage.setItem('blockRaidersHighScore', newScore); }
+        }
+        
+        function drawPlayer() {
+            const x = player.x; const y = player.y; const w = player.width; const h = player.height;
+            
+            ctx.save();
+            if(player.isInvincible) {
+                ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 80) * 0.2;
+                ctx.shadowColor = `hsl(${Date.now() / 20 % 360}, 100%, 70%)`;
+                ctx.shadowBlur = 15;
+            }
+
+            const engineY = y + h * 0.9; const leftEngineX = x + w * 0.2; const rightEngineX = x + w * 0.8;
+            const gradLeft = ctx.createRadialGradient(leftEngineX, engineY, 1, leftEngineX, engineY, 15);
+            gradLeft.addColorStop(0, 'rgba(135, 206, 250, 0.8)'); gradLeft.addColorStop(1, 'rgba(0, 0, 255, 0)');
+            const gradRight = ctx.createRadialGradient(rightEngineX, engineY, 1, rightEngineX, engineY, 15);
+            gradRight.addColorStop(0, 'rgba(135, 206, 250, 0.8)'); gradRight.addColorStop(1, 'rgba(0, 0, 255, 0)');
+            ctx.fillStyle = gradLeft; ctx.fillRect(leftEngineX - 10, y + h * 0.6, 20, 20);
+            ctx.fillStyle = gradRight; ctx.fillRect(rightEngineX - 10, y + h * 0.6, 20, 20);
+            ctx.fillStyle = '#E5E4E2'; ctx.beginPath(); ctx.moveTo(x + w * 0.5, y);
+            ctx.quadraticCurveTo(x, y + h * 0.5, x, y + h * 0.8); ctx.lineTo(x + w * 0.3, y + h);
+            ctx.lineTo(x + w * 0.7, y + h); ctx.lineTo(x + w, y + h * 0.8);
+            ctx.quadraticCurveTo(x + w, y + h * 0.5, x + w * 0.5, y); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#2c3e50'; ctx.beginPath(); ctx.arc(x + w * 0.5, y + h * 0.45, w * 0.15, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.restore();
+
+            const barrierWidth = player.shieldWidth;
+            const barrierX = x - (barrierWidth - w) / 2;
+            const barrierY = y - BARRIER_HEIGHT;
+            ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 150) * 0.3;
+            
+            let grad, shadowColor;
+            if (player.shieldEnhanced) {
+                grad = ctx.createLinearGradient(barrierX, barrierY, barrierX + barrierWidth, barrierY);
+                grad.addColorStop(0, "rgba(255, 0, 0, 0)");
+                grad.addColorStop(0.2, "rgba(255, 69, 0, 0.8)");
+                grad.addColorStop(0.8, "rgba(255, 69, 0, 0.8)");
+                grad.addColorStop(1, "rgba(255, 0, 0, 0)");
+                shadowColor = '#ff4500';
+            } else {
+                grad = ctx.createLinearGradient(barrierX, barrierY, barrierX + barrierWidth, barrierY);
+                grad.addColorStop(0, "rgba(0, 225, 255, 0)");
+                grad.addColorStop(0.2, "rgba(173, 216, 230, 0.8)");
+                grad.addColorStop(0.8, "rgba(173, 216, 230, 0.8)");
+                grad.addColorStop(1, "rgba(0, 225, 255, 0)");
+                shadowColor = '#00e1ff';
+            }
+            ctx.shadowColor = shadowColor;
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = grad;
+            ctx.fillRect(barrierX, barrierY, barrierWidth, 6);
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawBall(ball) {
+            ctx.beginPath();
+            if (ball.isPiercing) {
+                const grad = ctx.createRadialGradient(ball.x, ball.y, ball.radius * 0.2, ball.x, ball.y, ball.radius);
+                grad.addColorStop(0, '#FFFFFF');
+                grad.addColorStop(0.7, '#C9A0DC');
+                grad.addColorStop(1, '#9400D3');
+                ctx.fillStyle = grad;
+                ctx.shadowColor = '#C9A0DC';
+                ctx.shadowBlur = 20;
+            } else {
+                ctx.fillStyle = "#fff";
+                ctx.shadowBlur = 0;
+            }
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            if (ball.isPiercing) {
+                 for(let i=0; i<3; i++){
+                    ctx.beginPath();
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * ball.radius + ball.radius;
+                    const particleX = ball.x + Math.cos(angle) * dist;
+                    const particleY = ball.y + Math.sin(angle) * dist;
+                    ctx.arc(particleX, particleY, Math.random() * 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(201, 160, 220, ${Math.random() * 0.6})`;
+                    ctx.fill();
+                }
+            }
+            ctx.closePath();
+        }
+        function drawBalls() { balls.forEach(drawBall); }
+        function drawLasers() { lasers.forEach(l => { ctx.fillStyle = '#ff4d6d'; ctx.fillRect(l.x, l.y, LASER_WIDTH, LASER_HEIGHT); }); }
+        function drawHeart(x, y, size) {
+            ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.moveTo(x, y + size / 4);
+            ctx.quadraticCurveTo(x, y, x + size / 4, y); ctx.quadraticCurveTo(x + size / 2, y, x + size / 2, y + size / 4);
+            ctx.quadraticCurveTo(x + size / 2, y, x + size * 3 / 4, y); ctx.quadraticCurveTo(x + size, y, x + size, y + size / 4);
+            ctx.quadraticCurveTo(x + size, y + size / 2, x + size * 3 / 4, y + size * 3 / 4);
+            ctx.lineTo(x + size / 2, y + size); ctx.lineTo(x + size / 4, y + size * 3 / 4);
+            ctx.quadraticCurveTo(x, y + size / 2, x, y + size / 4); ctx.fill();
+        }
+        function drawItems() {
+            items.forEach(item => {
+                ctx.font = `${ITEM_SIZE * 0.9}px 'Press Start 2P'`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                if (item.type === 'life') { drawHeart(item.x, item.y, ITEM_SIZE); } 
+                else if (item.type === 'multiBall') {
+                    ctx.fillStyle = '#fceb00'; ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#000'; ctx.fillText('B', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
+                } else if (item.type === 'pierce') {
+                    ctx.fillStyle = '#9400d3';
+                    ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.fillText('P', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
+                } else if (item.type === 'wideShield') {
+                    ctx.fillStyle = '#32cd32';
+                    ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.fillText('W', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
+                } else if (item.type === 'invincible') {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.save();
+                    ctx.translate(item.x + ITEM_SIZE/2, item.y + ITEM_SIZE/2);
+                    ctx.beginPath();
+                    for(let i=0; i<10; i++){
+                        const angle = i * Math.PI / 5;
+                        const r = i % 2 === 0 ? ITEM_SIZE * 0.5 : ITEM_SIZE * 0.25;
+                        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+        }
+
+        function drawInvaderShape(x, y, width, height, color) {
+            ctx.fillStyle = color; const w = width / 10; const h = height / 8;
+            const pattern = [ [0,0,1,1,1,1,1,1,0,0],[0,1,1,1,1,1,1,1,1,0],[1,1,1,0,1,1,0,1,1,1],[1,1,1,1,1,1,1,1,1,1],[0,0,1,0,0,0,0,1,0,0],[0,1,0,1,0,0,1,0,1,0],];
+            for (let row = 0; row < pattern.length; row++) { for (let col = 0; col < pattern[row].length; col++) { if (pattern[row][col]) { ctx.fillRect(x + col * w, y + row * h, w, h); } } }
+        }
+        function drawInvaders() { invaders.forEach(c => c.forEach(i => { if (i.status === 1) { drawInvaderShape(i.x, i.y, i.width, i.height, i.color); } })); }
+        function drawStars() {
+            if (!stars) {
+                stars = [];
+                for (let i = 0; i < 150; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        radius: Math.random() * 1.5,
+                        speed: Math.random() * 0.5 + 0.2
+                    });
+                }
+            }
+            
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function triggerScreenEffect() {
+            gameContainer.classList.add('shake');
+            const flash = document.createElement('div');
+            Object.assign(flash.style, { position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', backgroundColor: 'rgba(255, 0, 0, 0.4)', opacity: '1', transition: 'opacity 0.3s ease-out', zIndex: '5' });
+            gameContainer.appendChild(flash);
+            setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 300); }, 50);
+            setTimeout(() => gameContainer.classList.remove('shake'), 500);
+        }
+
+        function resetGame() {
+            score = 0; lives = 3; level = 1; gameStarted = true; gameOver = false;
+            isLevelTransitioning = false;
+            balls = [];
+            startNextLevel();
+            startBGM();
+        }
+
+        function startNextLevel() {
+            levelEl.textContent = `LEVEL: ${level}`;
+            invaderSpeed = 0.25;
+            player = { x: (canvas.width - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: 7, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
+            
+            const currentBallCount = balls.length > 0 ? balls.length : 1;
+            balls = [];
+            for (let i = 0; i < currentBallCount; i++) {
+                 const angle = (Math.random() - 0.5) * Math.PI / 3;
+                 balls.push({ x: player.x + PADDLE_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false });
+            }
+            
+            lasers = []; items = []; invadersMoveDirection = 1; invadersMoveDown = false; frameCount = 0;
+            invaders = []; const invColors = ['#e71d36', '#ff9f1c', '#fca311', '#2ec4b6', '#a2d2ff'];
+            for (let c = 0; c < INVADER_COLS; c++) {
+                invaders[c] = [];
+                for (let r = 0; r < INVADER_ROWS; r++) { invaders[c][r] = { x: (c * (INVADER_WIDTH + INVADER_PADDING)) + INVADER_OFFSET_LEFT, y: (r * (INVADER_HEIGHT + INVADER_PADDING)) + INVADER_OFFSET_TOP, width: INVADER_WIDTH, height: INVADER_HEIGHT, status: 1, color: invColors[r % invColors.length], drop: null }; }
+            }
+            
+            let allInvaders = invaders.flat();
+            for (let i = allInvaders.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allInvaders[i], allInvaders[j]] = [allInvaders[j], allInvaders[i]];
+            }
+            if(allInvaders.length > 0) allInvaders[0].drop = 'pierce';
+            if(allInvaders.length > 1) allInvaders[1].drop = 'wideShield';
+            if(allInvaders.length > 2) allInvaders[2].drop = 'invincible';
+            
+            updateUI();
+        }
+        
+        function handleGameOver(isWin) {
+            gameOver = true; gameStarted = false; isLevelTransitioning = false;
+            stopBGM();
+            document.getElementById('gameOverTitle').textContent = isWin ? "STAGE CLEAR!" : "GAME OVER";
+            if (isWin) sounds.win(); else sounds.gameOver();
+            if (score > highScore) { highScore = score; saveHighScore(highScore); }
+            document.getElementById('resultLevel').textContent = level;
+            document.getElementById('resultScore').textContent = score;
+            document.getElementById('resultHighScore').textContent = highScore;
+            const shareText = encodeURIComponent(`Block Raidersでレベル${level}に到達し、${score}点を獲得！あなたも挑戦してみる？ #ブロックレイダーズ`);
+            const pageUrl = encodeURIComponent(window.location.href);
+            document.getElementById('shareX').href = `https://twitter.com/intent/tweet?text=${shareText}&url=${pageUrl}`;
+            document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}&quote=${shareText}`;
+            document.getElementById('shareLine').href = `https://social-plugins.line.me/lineit/share?url=${pageUrl}&text=${shareText}`;
+            gameOverScreen.classList.add('active');
+        }
+
+        function updateUI() { scoreEl.textContent = `SCORE: ${score}`; livesEl.innerHTML = `LIVES: ${'❤'.repeat(lives)}`; levelEl.textContent = `LEVEL: ${level}`; }
+        
+        function updateBalls() {
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const ball = balls[i];
+                ball.x += ball.dx; ball.y += ball.dy;
+
+                if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.dx *= -1; sounds.hit(); } 
+                else if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.dx *= -1; sounds.hit(); }
+
+                if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.dy *= -1; sounds.hit(); }
+
+                const barrierTop = player.y - BARRIER_HEIGHT;
+                const barrierWidth = player.shieldWidth;
+                const barrierX = player.x - (barrierWidth - player.width) / 2;
+
+                if (ball.y + ball.radius > barrierTop && ball.y - ball.radius < player.y + player.height && ball.x + ball.radius > barrierX && ball.x - ball.radius < barrierX + barrierWidth) {
+                    ball.y = barrierTop - ball.radius;
+                    let collidePoint = (ball.x - (player.x + player.width / 2)) / (player.width * 0.75);
+                    let angle = collidePoint * (Math.PI / 3);
+                    angle = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, angle));
+                    ball.dx = BALL_SPEED * Math.sin(angle);
+                    ball.dy = -BALL_SPEED * Math.cos(angle);
+                    sounds.hit();
+                }
+
+                if (ball.y - ball.radius > canvas.height) { balls.splice(i, 1); }
+            }
+            if (balls.length === 0 && gameStarted && !gameOver && !isLevelTransitioning) {
+                lives--;
+                sounds.playerHit();
+                updateUI();
+                if (lives <= 0) { handleGameOver(false); } 
+                else {
+                    const angle = (Math.random() - 0.5) * Math.PI / 3;
+                    balls.push({ x: canvas.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false }); 
+                }
+            }
+        }
+
+        function update() {
+            if (isLevelTransitioning) return;
+
+            if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
+            if (leftPressed && player.x > 0) player.x -= player.speed;
+            
+            updateBalls();
+
+            let firstX = canvas.width, lastX = 0, allDestroyed = true, reachBottom = false;
+            invadersMoveDown = false;
+            invaders.forEach(c => c.forEach(i => { if (i.status === 1) { allDestroyed = false; firstX = Math.min(firstX, i.x); lastX = Math.max(lastX, i.x); }}));
+            if(lastX + INVADER_WIDTH > canvas.width || firstX < 0) { invadersMoveDirection *= -1; invadersMoveDown = true; }
+            
+            invaders.forEach(c => c.forEach(invader => {
+                if (invader.status === 1) {
+                    invader.x += invaderSpeed * invadersMoveDirection; if(invadersMoveDown) invader.y += INVADER_HEIGHT;
+                    if (invader.y + invader.height > player.y) reachBottom = true;
+
+                    for (let i = balls.length - 1; i >= 0; i--) {
+                        const ball = balls[i];
+                        const invaderHitboxX = invader.x + INVADER_HITBOX_INSET_X;
+                        const invaderHitboxY = invader.y + INVADER_HITBOX_INSET_Y;
+                        const invaderHitboxWidth = invader.width - 2 * INVADER_HITBOX_INSET_X;
+                        const invaderHitboxHeight = invader.height - 2 * INVADER_HITBOX_INSET_Y;
+
+                        if (ball.x + ball.radius > invaderHitboxX && ball.x - ball.radius < invaderHitboxX + invaderHitboxWidth && ball.y + ball.radius > invaderHitboxY && ball.y - ball.radius < invaderHitboxY + invaderHitboxHeight) {
+                             sounds.destroy();
+                             if (!ball.isPiercing) {
+                                ball.dy *= -1;
+                             }
+                             invader.status = 0; score += 10; 
+                             if (invader.drop) {
+                                 items.push({x: invader.x + invader.width / 2, y: invader.y, type: invader.drop});
+                                 invader.drop = null;
+                             } else if (Math.random() < ITEM_DROP_CHANCE) {
+                                 const itemType = Math.random() < MULTIBALL_CHANCE && balls.length < 3 ? 'multiBall' : 'life';
+                                 items.push({x: invader.x + invader.width / 2, y: invader.y, type: itemType});
+                             }
+                             updateUI();
+                             break;
+                        }
+                    }
+                }
+            }));
+
+            if(reachBottom) { handleGameOver(false); return; }
+            if(allDestroyed && gameStarted && !gameOver && !isLevelTransitioning) {
+                isLevelTransitioning = true;
+                level++;
+                sounds.win();
+                setTimeout(() => {
+                    startNextLevel();
+                    isLevelTransitioning = false;
+                }, 1500);
+                return;
+            }
+
+            frameCount++;
+            if (frameCount % (Math.max(20, 90 - level * 4)) === 0 && Math.random() < (0.15 + level * 0.04)) {
+                let shooters = []; invaders.forEach(c => { for(let r=INVADER_ROWS-1; r>=0; r--) { if(c[r].status===1) { shooters.push(c[r]); break; }}});
+                if(shooters.length > 0) { const s = shooters[Math.floor(Math.random() * shooters.length)]; lasers.push({x: s.x + s.width / 2 - LASER_WIDTH / 2, y: s.y + s.height }); sounds.laser(); }
+            }
+            lasers.forEach((l, i) => {
+                l.y += LASER_SPEED; if (l.y > canvas.height) lasers.splice(i, 1);
+                
+                if (player.isInvincible) return;
+
+                const playerHitboxX = player.x + PLAYER_HITBOX_INSET_X;
+                const playerHitboxY = player.y + PLAYER_HITBOX_INSET_Y;
+                const playerHitboxWidth = player.width - 2 * PLAYER_HITBOX_INSET_X;
+                const playerHitboxHeight = player.height - PLAYER_HITBOX_INSET_Y;
+                if (l.y + LASER_HEIGHT > playerHitboxY && l.y < playerHitboxY + playerHitboxHeight && l.x + LASER_WIDTH > playerHitboxX && l.x < playerHitboxX + playerHitboxWidth) {
+                     lasers.splice(i, 1); lives--; sounds.playerHit(); triggerScreenEffect(); if (lives <= 0) handleGameOver(false); updateUI();
+                }
+            });
+            items.forEach((item, i) => {
+                item.y += ITEM_SPEED; if (item.y > canvas.height) items.splice(i, 1);
+                const itemHitboxX = item.x - ITEM_SIZE / 2;
+                const itemHitboxY = item.y - ITEM_SIZE / 2;
+                if(itemHitboxY + ITEM_SIZE > player.y && itemHitboxY < player.y + PADDLE_HEIGHT && itemHitboxX + ITEM_SIZE > player.x && itemHitboxX < player.x + PADDLE_WIDTH) {
+                     if(item.type === 'life' && lives < 5) { lives++; sounds.getItem(); }
+                     else if (item.type === 'multiBall') {
+                         sounds.getMultiBall();
+                         if (balls.length < 3) {
+                             const angle = (Math.random() - 0.5) * Math.PI / 3;
+                             balls.push({ x: player.x + player.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false });
+                         }
+                     } else if (item.type === 'pierce') {
+                         sounds.getPierce();
+                         balls.forEach(b => b.isPiercing = true);
+                         if (pierceTimeoutId) clearTimeout(pierceTimeoutId);
+                         pierceTimeoutId = setTimeout(() => {
+                             balls.forEach(b => b.isPiercing = false);
+                         }, PIERCE_DURATION);
+                     } else if(item.type === 'wideShield') {
+                         sounds.getShield();
+                         player.shieldEnhanced = true;
+                         player.shieldWidth = PADDLE_WIDTH * 2.2;
+                         if(shieldTimeoutId) clearTimeout(shieldTimeoutId);
+                         shieldTimeoutId = setTimeout(() => {
+                             player.shieldWidth = PADDLE_WIDTH * 1.6;
+                             player.shieldEnhanced = false;
+                         }, SHIELD_EXPAND_DURATION);
+                     } else if (item.type === 'invincible') {
+                         sounds.getInvincible();
+                         player.isInvincible = true;
+                         if(invincibleTimeoutId) clearTimeout(invincibleTimeoutId);
+                         invincibleTimeoutId = setTimeout(() => {
+                            player.isInvincible = false;
+                         }, INVINCIBLE_DURATION);
+                     }
+                     items.splice(i, 1);
+                     updateUI();
+                }
+            });
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawStars(); drawInvaders(); drawLasers(); drawItems(); drawPlayer(); drawBalls();
+        }
+        
+        function gameLoop() {
+            if (!gameStarted) return;
+            update(); draw();
+            if (!gameOver) requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true; });
+        document.addEventListener('keyup', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false; });
+        
+        muteButton.addEventListener('click', () => {
+            Tone.Master.mute = !Tone.Master.mute;
+            muteButton.textContent = `SOUND: ${Tone.Master.mute ? 'OFF' : 'ON'}`;
+        });
+
+        startButton.addEventListener('click', async () => { 
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+            startScreen.classList.remove('active');
+            resetGame();
+            gameLoop();
+        });
+        restartButton.addEventListener('click', () => {
+            gameOverScreen.classList.remove('active');
+            resetGame();
+            gameLoop();
+        });
+        window.onload = () => { initializeFirebase(); drawStars(); };
+
+    </script>
+</body>
+</html>
