@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Block Raiders</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -85,12 +85,13 @@
         .screen button { background-color: #fca311; color: #1a1a2e; border: none; padding: 15px 30px; font-size: 20px; font-family: inherit; border-radius: 8px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 0 #c87e07; margin-top: 20px; }
         .screen button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #c87e07; }
         .screen button:active { transform: translateY(2px); box-shadow: 0 2px 0 #c87e07; }
-        #shareButtons { margin-top: 25px; display: flex; gap: 15px; }
-        #shareButtons a { display: inline-block; padding: 10px 15px; border-radius: 5px; color: white; text-decoration: none; font-size: 14px; transition: transform 0.2s; }
-        #shareButtons a:hover { transform: scale(1.1); }
-        #shareX { background-color: #1DA1F2; }
-        #shareFacebook { background-color: #1877F2; }
-        #shareLine { background-color: #00B900; }
+        .share-buttons { margin-top: 25px; display: flex; gap: 15px; }
+        .share-buttons a { display: inline-block; padding: 10px 15px; border-radius: 5px; color: white; text-decoration: none; font-size: 14px; transition: transform 0.2s; }
+        .share-buttons a:hover { transform: scale(1.1); }
+        .share-x { background-color: #000000; }
+        .share-facebook { background-color: #1877F2; }
+        .share-line { background-color: #00B900; }
+        #adContainer a { display: block; margin-bottom: 15px;}
 
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
@@ -119,26 +120,40 @@
         <div id="startScreen" class="screen active">
             <h2>Block Raiders</h2>
             <p>High Score: <span id="startHighScore">0</span></p>
-            <button id="startButton">START GAME</button>
+            <button id="startButton" disabled>LOADING...</button>
         </div>
         <div id="gameOverScreen" class="screen">
             <h2 id="gameOverTitle">GAME OVER</h2>
             <p>LEVEL: <span id="resultLevel">1</span></p>
             <p>SCORE: <span id="resultScore">0</span></p>
             <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
-            <div id="shareButtons">
-                <a id="shareX" href="#" target="_blank">Xでシェア</a>
-                <a id="shareFacebook" href="#" target="_blank">Facebook</a>
-                <a id="shareLine" href="#" target="_blank">LINE</a>
+            <button id="restartButton">もう一度プレイ</button>
+            <div id="shareButtons" class="share-buttons">
+                <a id="shareX" class="share-x" href="#" target="_blank">Xでシェア</a>
+                <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
+                <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
             </div>
-            <button id="restartButton">TRY AGAIN</button>
+        </div>
+         <div id="adScreen" class="screen">
+            <div id="adContainer">
+                <a href="https://click.duga.jp/aff/48328-01" target="_blank">
+                    <img src="https://ad.duga.jp/banner/aff/300-250.gif" alt="APEX アフィリエイト システム">
+                </a>
+            </div>
+            <p><span id="adTimer">5</span>秒後にリスタートします</p>
+            <div id="shareButtonsAd" class="share-buttons">
+                <p style="font-size: 14px; margin-bottom: 10px;">シェアして広告をスキップ！</p>
+                <a id="shareXAd" class="share-x" href="#" target="_blank">Xでシェア</a>
+                <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
+                <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
+            </div>
         </div>
     </div>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
         
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -151,6 +166,10 @@
         const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
         const muteButton = document.getElementById('muteButton');
+        const adScreen = document.getElementById('adScreen');
+        const adTimerEl = document.getElementById('adTimer');
+        const shareButtons = document.getElementById('shareButtons');
+        const shareButtonsAd = document.getElementById('shareButtonsAd');
         
         const PADDLE_WIDTH = 80, PADDLE_HEIGHT = 28, BARRIER_HEIGHT = 10, PADDLE_Y = canvas.height - 50;
         const BALL_RADIUS = 7, BALL_SPEED = 4.3;
@@ -166,6 +185,8 @@
         const PIERCE_DURATION = 8000;
         const SHIELD_EXPAND_DURATION = 10000;
         const INVINCIBLE_DURATION = 8000;
+        const GAME_URL = "https://kujo-jotarou.github.io/my-game-assets/";
+        const BGM_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3";
 
         let player, balls, invaders, lasers, items, stars;
         let score, lives, level, highScore = 0;
@@ -175,6 +196,9 @@
         let pierceTimeoutId = null;
         let shieldTimeoutId = null;
         let invincibleTimeoutId = null;
+        let touchStartX = null;
+        let hasSharedThisSession = false;
+        let adTimerInterval = null;
 
         let db, auth, userId;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -209,53 +233,14 @@
             win: () => { const now = Tone.now(); melodySynth.triggerAttackRelease('C5', '8n', now); melodySynth.triggerAttackRelease('E5', '8n', now + 0.1); melodySynth.triggerAttackRelease('G5', '8n', now + 0.2); melodySynth.triggerAttackRelease('C6', '4n', now + 0.3); }
         };
 
-        let bgmElements = [];
+        const bgmPlayer = new Tone.Player({
+            url: BGM_URL,
+            loop: true,
+            volume: -12,
+        }).toDestination();
         
-        function stopBGM() {
-            Tone.Transport.stop();
-            Tone.Transport.cancel(0);
-            bgmElements.forEach(elem => {
-                if (elem && typeof elem.dispose === 'function') {
-                    elem.dispose();
-                }
-            });
-            bgmElements = [];
-        }
-
-        function startBGM() {
-            if (Tone.context.state !== 'running' || Tone.Transport.state === 'started') return;
-            
-            stopBGM();
-
-            const bgmBus = new Tone.Channel({volume: -16, pan: 0}).toDestination();
-            const bass = new Tone.MonoSynth({ oscillator: { type: 'fmsquare', modulationType: 'sine' }, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.8 }, filterEnvelope: { attack: 0.02, decay: 0.2, sustain: 0.5, release: 0.8, baseFrequency: 200, octaves: 3 } }).connect(bgmBus);
-            const arp = new Tone.FMSynth({ harmonicity: 3.01, modulationIndex: 14, detune: 0, oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.4 }, modulation: { type: "square" }, modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.5 } }).connect(bgmBus);
-            arp.volume.value = -14;
-            const kick = new Tone.MembraneSynth({ pitchDecay: 0.04, octaves: 8, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.5, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }, volume: -6 }).connect(bgmBus);
-            const hihat = new Tone.MetalSynth({ frequency: 250, envelope: { attack: 0.001, decay: 0.08, release: 0.02 }, harmonicity: 5.1, modulationIndex: 40, resonance: 4000, octaves: 1.5, volume: -20 }).connect(bgmBus);
-            
-            const bassLine = new Tone.Sequence((time, note) => {
-                bass.triggerAttackRelease(note, "8n", time);
-            }, ["C2", ["C2", "C2"], "F1", null, "G1", ["G1", "D2"], "C2", null], "4n");
-
-            const arpPattern = new Tone.Pattern((time, note) => {
-                arp.triggerAttackRelease(note, "16n", time);
-            }, ["C4", "D#4", "G4", "A#4", "G4", "D#4"], "randomWalk");
-
-            const hihatPattern = new Tone.Sequence((time, note) => {
-                hihat.triggerAttackRelease("C5", note, time);
-            }, ["16n", "16n", null, "16n", "16n", null], "4n");
-
-            bgmElements = [bass, arp, kick, hihat, bassLine, arpPattern, hihatPattern];
-
-            Tone.Transport.scheduleRepeat(time => {
-                kick.triggerAttackRelease("C1", "8n", time);
-            }, "4n");
-
-            Tone.Transport.bpm.value = 165;
-            Tone.Transport.start();
-        }
-
+        function startBGM() { if (bgmPlayer.loaded && bgmPlayer.state !== 'started') { bgmPlayer.start(); } }
+        function stopBGM() { if(bgmPlayer.state === 'started') { bgmPlayer.stop(); } }
 
         async function initializeFirebase() {
             try {
@@ -457,6 +442,7 @@
         function resetGame() {
             score = 0; lives = 3; level = 1; gameStarted = true; gameOver = false;
             isLevelTransitioning = false;
+            hasSharedThisSession = false;
             balls = [];
             startNextLevel();
             startBGM();
@@ -502,11 +488,19 @@
             document.getElementById('resultLevel').textContent = level;
             document.getElementById('resultScore').textContent = score;
             document.getElementById('resultHighScore').textContent = highScore;
+            
             const shareText = encodeURIComponent(`Block Raidersでレベル${level}に到達し、${score}点を獲得！あなたも挑戦してみる？ #ブロックレイダーズ`);
-            const pageUrl = encodeURIComponent(window.location.href);
+            const pageUrl = encodeURIComponent(GAME_URL);
             document.getElementById('shareX').href = `https://twitter.com/intent/tweet?text=${shareText}&url=${pageUrl}`;
             document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}&quote=${shareText}`;
             document.getElementById('shareLine').href = `https://social-plugins.line.me/lineit/share?url=${pageUrl}&text=${shareText}`;
+            
+            document.getElementById('shareXAd').href = document.getElementById('shareX').href;
+            document.getElementById('shareFacebookAd').href = document.getElementById('shareFacebook').href;
+            document.getElementById('shareLineAd').href = document.getElementById('shareLine').href;
+
+            shareButtons.style.display = 'flex';
+            
             gameOverScreen.classList.add('active');
         }
 
@@ -540,10 +534,11 @@
             }
             if (balls.length === 0 && gameStarted && !gameOver && !isLevelTransitioning) {
                 lives--;
-                sounds.playerHit();
                 updateUI();
-                if (lives <= 0) { handleGameOver(false); } 
-                else {
+                if (lives <= 0) { 
+                    handleGameOver(false); 
+                } else {
+                    sounds.playerHit();
                     const angle = (Math.random() - 0.5) * Math.PI / 3;
                     balls.push({ x: canvas.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false }); 
                 }
@@ -680,26 +675,90 @@
 
         document.addEventListener('keydown', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true; });
         document.addEventListener('keyup', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false; });
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); touchStartX = e.touches[0].clientX; }, { passive: false });
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if(touchStartX === null) return;
+            const currentX = e.touches[0].clientX;
+            const diffX = currentX - touchStartX;
+            player.x += diffX * 1.5;
+            if(player.x < 0) player.x = 0;
+            if(player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+            touchStartX = currentX;
+        }, { passive: false });
+        canvas.addEventListener('touchend', e => { e.preventDefault(); touchStartX = null; });
         
         muteButton.addEventListener('click', () => {
             Tone.Master.mute = !Tone.Master.mute;
             muteButton.textContent = `SOUND: ${Tone.Master.mute ? 'OFF' : 'ON'}`;
         });
 
-        startButton.addEventListener('click', async () => { 
-            if (Tone.context.state !== 'running') {
-                await Tone.start();
-            }
+        startButton.addEventListener('click', () => { 
             startScreen.classList.remove('active');
             resetGame();
             gameLoop();
         });
         restartButton.addEventListener('click', () => {
             gameOverScreen.classList.remove('active');
-            resetGame();
-            gameLoop();
+            if (hasSharedThisSession) {
+                resetGame();
+                gameLoop();
+            } else {
+                playAdSimulation();
+            }
         });
-        window.onload = () => { initializeFirebase(); drawStars(); };
+
+        function handleShareClick(e) {
+            hasSharedThisSession = true;
+        }
+
+        shareButtons.querySelectorAll('a').forEach(button => {
+            button.addEventListener('click', handleShareClick);
+        });
+        
+        shareButtonsAd.querySelectorAll('a').forEach(button => {
+            button.addEventListener('click', (e) => {
+                handleShareClick(e);
+                clearInterval(adTimerInterval);
+                adScreen.classList.remove('active');
+                resetGame();
+                gameLoop();
+            });
+        });
+
+        function playAdSimulation() {
+            adScreen.classList.add('active');
+            shareButtonsAd.style.display = 'flex';
+            let timeLeft = 5;
+            adTimerEl.textContent = timeLeft;
+            adTimerInterval = setInterval(() => {
+                timeLeft--;
+                adTimerEl.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(adTimerInterval);
+                    adScreen.classList.remove('active');
+                    resetGame();
+                    gameLoop();
+                }
+            }, 1000);
+        }
+        
+        window.onload = async () => {
+            await initializeFirebase(); 
+            drawStars(); 
+            
+            startButton.disabled = true;
+            try {
+                await Tone.start();
+                await bgmPlayer.load(BGM_URL);
+                startButton.disabled = false;
+                startButton.textContent = "START GAME";
+            } catch(e) {
+                console.error("サウンドの読み込みに失敗しました。", e);
+                startButton.textContent = "START (NO SOUND)";
+                startButton.disabled = false;
+            }
+        };
 
     </script>
 </body>
