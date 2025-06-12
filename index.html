@@ -9,39 +9,65 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        body {
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background-color: #1a1a2e;
             color: #e0e0e0;
             font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+        }
+        #app-container {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 24px;
+            color: #fca311;
+            margin: 0 0 10px 0;
+            text-shadow: 2px 2px #000;
+        }
+        #game-wrapper {
+            width: 100%;
+            max-width: 480px;
+            flex-grow: 1;
+            display: flex;
             flex-direction: column;
-            margin: 0;
-            height: 100vh;
-            text-align: center;
-            overflow: hidden;
-        }
-        canvas {
-            background-color: #0f0f1b;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(252, 163, 17, 0.5);
-            max-width: 100%;
-            max-height: 80vh;
-            aspect-ratio: 4 / 5;
-            touch-action: none;
-        }
-        #gameContainer {
-            position: relative;
+            min-height: 0;
         }
         #uiContainer {
             display: flex;
             justify-content: space-between;
             align-items: center;
             width: 100%;
-            max-width: 480px;
             padding: 10px 0;
             font-size: 14px;
+            flex-shrink: 0;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0f0f1b;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(252, 163, 17, 0.5);
+            touch-action: none;
         }
         #lives {
             color: #ff4d6d;
@@ -74,6 +100,7 @@
             opacity: 0;
             transition: visibility 0s 0.3s, opacity 0.3s linear;
             z-index: 10;
+            border-radius: 10px;
         }
         .screen.active {
             visibility: visible;
@@ -105,47 +132,50 @@
     </style>
 </head>
 <body>
-
-    <h1>Block Raiders</h1>
-    <div id="uiContainer">
-        <div>
-            <span id="score">SCORE: 0</span><br>
-            <span id="level">LEVEL: 1</span>
-        </div>
-        <div id="lives">LIVES: 3</div>
-        <button id="muteButton">SOUND: ON</button>
-    </div>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="480" height="600"></canvas>
-        <div id="startScreen" class="screen active">
-            <h2>Block Raiders</h2>
-            <p>High Score: <span id="startHighScore">0</span></p>
-            <button id="startButton">START GAME</button>
-        </div>
-        <div id="gameOverScreen" class="screen">
-            <h2 id="gameOverTitle">GAME OVER</h2>
-            <p>LEVEL: <span id="resultLevel">1</span></p>
-            <p>SCORE: <span id="resultScore">0</span></p>
-            <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
-            <button id="restartButton">もう一度プレイ</button>
-            <div id="shareButtons" class="share-buttons">
-                <a id="shareX" class="share-x" href="#" target="_blank">Xでシェア</a>
-                <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
-                <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
+    <div id="app-container">
+        <h1>Block Raiders</h1>
+        <div id="game-wrapper">
+            <div id="uiContainer">
+                <div>
+                    <span id="score">SCORE: 0</span><br>
+                    <span id="level">LEVEL: 1</span>
+                </div>
+                <div id="lives">LIVES: 3</div>
+                <button id="muteButton">SOUND: ON</button>
             </div>
-        </div>
-         <div id="adScreen" class="screen">
-            <div id="adContainer">
-                <a href="https://click.duga.jp/aff/48328-01" target="_blank">
-                    <img src="https://ad.duga.jp/banner/aff/300-250.gif" alt="APEX アフィリエイト システム">
-                </a>
-            </div>
-            <p><span id="adTimer">5</span>秒後にリスタートします</p>
-            <div id="shareButtonsAd" class="share-buttons">
-                <p style="font-size: 14px; margin-bottom: 10px;">シェアして広告をスキップ！</p>
-                <a id="shareXAd" class="share-x" href="#" target="_blank">Xでシェア</a>
-                <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
-                <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
+            <div id="gameContainer">
+                <canvas id="gameCanvas"></canvas>
+                <div id="startScreen" class="screen active">
+                    <h2>Block Raiders</h2>
+                    <p>High Score: <span id="startHighScore">0</span></p>
+                    <button id="startButton" disabled>LOADING...</button>
+                </div>
+                <div id="gameOverScreen" class="screen">
+                    <h2 id="gameOverTitle">GAME OVER</h2>
+                    <p>LEVEL: <span id="resultLevel">1</span></p>
+                    <p>SCORE: <span id="resultScore">0</span></p>
+                    <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
+                    <button id="restartButton">もう一度プレイ</button>
+                    <div id="shareButtons" class="share-buttons">
+                        <a id="shareX" class="share-x" href="#" target="_blank">Xでシェア</a>
+                        <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
+                        <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
+                    </div>
+                </div>
+                 <div id="adScreen" class="screen">
+                    <div id="adContainer">
+                        <a href="https://click.duga.jp/aff/48328-01" target="_blank">
+                            <img src="https://ad.duga.jp/banner/aff/300-250.gif" alt="APEX アフィリエイト システム">
+                        </a>
+                    </div>
+                    <p><span id="adTimer">7</span>秒後にリスタートします</p>
+                    <div id="shareButtonsAd" class="share-buttons">
+                        <p style="font-size: 14px; margin-bottom: 10px;">シェアして広告をスキップ！</p>
+                        <a id="shareXAd" class="share-x" href="#" target="_blank">Xでシェア</a>
+                        <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
+                        <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -153,7 +183,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
         
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -171,22 +201,25 @@
         const shareButtons = document.getElementById('shareButtons');
         const shareButtonsAd = document.getElementById('shareButtonsAd');
         
-        const PADDLE_WIDTH = 80, PADDLE_HEIGHT = 28, BARRIER_HEIGHT = 10, PADDLE_Y = canvas.height - 50;
-        const BALL_RADIUS = 7, BALL_SPEED = 4.3;
-        const INVADER_ROWS = 5, INVADER_COLS = 8, INVADER_WIDTH = 36, INVADER_HEIGHT = 24;
-        const INVADER_PADDING = 12, INVADER_OFFSET_TOP = 50, INVADER_OFFSET_LEFT = 30;
-        const INVADER_HITBOX_INSET_X = 4, INVADER_HITBOX_INSET_Y = 2;
-        const LASER_WIDTH = 4, LASER_HEIGHT = 15, LASER_SPEED = 4.3;
-        const ITEM_SIZE = 15, ITEM_SPEED = 1.5;
-        const PLAYER_HITBOX_INSET_X = 15;
-        const PLAYER_HITBOX_INSET_Y = 5;
-        const ITEM_DROP_CHANCE = 0.09; 
-        const MULTIBALL_CHANCE = 0.5;
-        const PIERCE_DURATION = 8000;
-        const SHIELD_EXPAND_DURATION = 10000;
-        const INVINCIBLE_DURATION = 8000;
-        const GAME_URL = "https://kujo-jotarou.github.io/my-game-assets/";
-        const BGM_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3";
+        const PADDLE_WIDTH_RATIO = 0.2; 
+        const PADDLE_HEIGHT_RATIO = 0.04;
+        const BALL_RADIUS_RATIO = 0.01;
+        const LASER_WIDTH_RATIO = 0.01;
+        const LASER_HEIGHT_RATIO = 0.025;
+        const ITEM_SIZE_RATIO = 0.025;
+        
+        let PADDLE_WIDTH, PADDLE_HEIGHT, BALL_RADIUS, LASER_WIDTH, LASER_HEIGHT, ITEM_SIZE, PADDLE_Y;
+
+        const INVADER_ROWS = 5, INVADER_COLS = 8;
+        let INVADER_WIDTH, INVADER_HEIGHT, INVADER_PADDING, INVADER_OFFSET_TOP, INVADER_OFFSET_LEFT;
+
+        const INVADER_HITBOX_INSET_X_RATIO = 0.11;
+        const INVADER_HITBOX_INSET_Y_RATIO = 0.08;
+        const PLAYER_HITBOX_INSET_X_RATIO = 0.18;
+        const PLAYER_HITBOX_INSET_Y_RATIO = 0.18;
+
+        const BASE_SPEED = 0.007;
+        let ballSpeed, laserSpeed, itemSpeed;
 
         let player, balls, invaders, lasers, items, stars;
         let score, lives, level, highScore = 0;
@@ -199,7 +232,6 @@
         let touchStartX = null;
         let hasSharedThisSession = false;
         let adTimerInterval = null;
-        let audioInitialized = false;
 
         let db, auth, userId;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -235,7 +267,7 @@
         };
 
         const bgmPlayer = new Tone.Player({
-            url: BGM_URL,
+            url: "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3",
             loop: true,
             volume: -12,
         }).toDestination();
@@ -269,37 +301,31 @@
             try { await setDoc(doc(db, `artifacts/${appId}/users/${userId}/highscores`, "gameData"), { score: newScore }); }
             catch (e) { console.error("Firestore save failed:", e); localStorage.setItem('blockRaidersHighScore', newScore); }
         }
+
+        function drawPlayerShape(x, y, width, height) {
+            const w = width / 10;
+            const h = height / 7;
+            ctx.fillStyle = "#E5E4E2"; // Main body color
+            const body = [ [0,0,0,1,1,1,1,0,0,0],[0,0,1,1,1,1,1,1,0,0],[1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1],[0,1,1,0,0,0,0,1,1,0],];
+            for (let row = 0; row < body.length; row++) { for (let col = 0; col < body[row].length; col++) { if (body[row][col]) { ctx.fillRect(x + col * w, y + row * h, w, h); } } }
+            ctx.fillStyle = '#ff4d6d'; // Engine color
+            const engine = [[1,0,0,0,0,0,0,0,0,1],[0,1,0,0,0,0,0,0,1,0]];
+            for (let row = 0; row < engine.length; row++) { for (let col = 0; col < engine[row].length; col++) { if (engine[row][col]) { ctx.fillRect(x + col * w, y + (body.length + row) * h, w, h); } } }
+        }
         
         function drawPlayer() {
-            const x = player.x; const y = player.y; const w = player.width; const h = player.height;
-            
             ctx.save();
             if(player.isInvincible) {
                 ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 80) * 0.2;
                 ctx.shadowColor = `hsl(${Date.now() / 20 % 360}, 100%, 70%)`;
                 ctx.shadowBlur = 15;
             }
-
-            const engineY = y + h * 0.9; const leftEngineX = x + w * 0.2; const rightEngineX = x + w * 0.8;
-            const gradLeft = ctx.createRadialGradient(leftEngineX, engineY, 1, leftEngineX, engineY, 15);
-            gradLeft.addColorStop(0, 'rgba(135, 206, 250, 0.8)'); gradLeft.addColorStop(1, 'rgba(0, 0, 255, 0)');
-            const gradRight = ctx.createRadialGradient(rightEngineX, engineY, 1, rightEngineX, engineY, 15);
-            gradRight.addColorStop(0, 'rgba(135, 206, 250, 0.8)'); gradRight.addColorStop(1, 'rgba(0, 0, 255, 0)');
-            ctx.fillStyle = gradLeft; ctx.fillRect(leftEngineX - 10, y + h * 0.6, 20, 20);
-            ctx.fillStyle = gradRight; ctx.fillRect(rightEngineX - 10, y + h * 0.6, 20, 20);
-            ctx.fillStyle = '#E5E4E2'; ctx.beginPath(); ctx.moveTo(x + w * 0.5, y);
-            ctx.quadraticCurveTo(x, y + h * 0.5, x, y + h * 0.8); ctx.lineTo(x + w * 0.3, y + h);
-            ctx.lineTo(x + w * 0.7, y + h); ctx.lineTo(x + w, y + h * 0.8);
-            ctx.quadraticCurveTo(x + w, y + h * 0.5, x + w * 0.5, y); ctx.closePath(); ctx.fill();
-            ctx.fillStyle = '#2c3e50'; ctx.beginPath(); ctx.arc(x + w * 0.5, y + h * 0.45, w * 0.15, 0, Math.PI * 2); ctx.fill();
-            
+            drawPlayerShape(player.x, player.y, player.width, player.height);
             ctx.restore();
-
             const barrierWidth = player.shieldWidth;
-            const barrierX = x - (barrierWidth - w) / 2;
-            const barrierY = y - BARRIER_HEIGHT;
+            const barrierX = player.x - (barrierWidth - player.width) / 2;
+            const barrierY = player.y - player.height * 0.2;
             ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 150) * 0.3;
-            
             let grad, shadowColor;
             if (player.shieldEnhanced) {
                 grad = ctx.createLinearGradient(barrierX, barrierY, barrierX + barrierWidth, barrierY);
@@ -404,7 +430,7 @@
             const pattern = [ [0,0,1,1,1,1,1,1,0,0],[0,1,1,1,1,1,1,1,1,0],[1,1,1,0,1,1,0,1,1,1],[1,1,1,1,1,1,1,1,1,1],[0,0,1,0,0,0,0,1,0,0],[0,1,0,1,0,0,1,0,1,0],];
             for (let row = 0; row < pattern.length; row++) { for (let col = 0; col < pattern[row].length; col++) { if (pattern[row][col]) { ctx.fillRect(x + col * w, y + row * h, w, h); } } }
         }
-        function drawInvaders() { invaders.forEach(c => c.forEach(i => { if (i.status === 1) { drawInvaderShape(i.x, i.y, i.width, i.height, i.color); } })); }
+        function drawInvaders() { invaders.forEach(c => c.forEach(i => { if (i.status === 1) { drawInvaderShape(i.x, i.y, INVADER_WIDTH, INVADER_HEIGHT, i.color); } })); }
         function drawStars() {
             if (!stars) {
                 stars = [];
@@ -451,21 +477,21 @@
 
         function startNextLevel() {
             levelEl.textContent = `LEVEL: ${level}`;
-            invaderSpeed = 0.25;
-            player = { x: (canvas.width - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: 7, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
+            invaderSpeed = canvas.width * 0.0005;
+            player = { x: (canvas.width - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: canvas.width * 0.015, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
             
             const currentBallCount = balls.length > 0 ? balls.length : 1;
             balls = [];
             for (let i = 0; i < currentBallCount; i++) {
                  const angle = (Math.random() - 0.5) * Math.PI / 3;
-                 balls.push({ x: player.x + PADDLE_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false });
+                 balls.push({ x: player.x + PADDLE_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false });
             }
             
             lasers = []; items = []; invadersMoveDirection = 1; invadersMoveDown = false; frameCount = 0;
             invaders = []; const invColors = ['#e71d36', '#ff9f1c', '#fca311', '#2ec4b6', '#a2d2ff'];
             for (let c = 0; c < INVADER_COLS; c++) {
                 invaders[c] = [];
-                for (let r = 0; r < INVADER_ROWS; r++) { invaders[c][r] = { x: (c * (INVADER_WIDTH + INVADER_PADDING)) + INVADER_OFFSET_LEFT, y: (r * (INVADER_HEIGHT + INVADER_PADDING)) + INVADER_OFFSET_TOP, width: INVADER_WIDTH, height: INVADER_HEIGHT, status: 1, color: invColors[r % invColors.length], drop: null }; }
+                for (let r = 0; r < INVADER_ROWS; r++) { invaders[c][r] = { x: c * (INVADER_WIDTH + INVADER_PADDING) + INVADER_OFFSET_LEFT, y: r * (INVADER_HEIGHT + INVADER_PADDING) + INVADER_OFFSET_TOP, status: 1, color: invColors[r % invColors.length], drop: null }; }
             }
             
             let allInvaders = invaders.flat();
@@ -507,31 +533,30 @@
 
         function updateUI() { scoreEl.textContent = `SCORE: ${score}`; livesEl.innerHTML = `LIVES: ${'❤'.repeat(lives)}`; levelEl.textContent = `LEVEL: ${level}`; }
         
-        function updateBalls() {
+        function update(deltaTime) {
+            if (isLevelTransitioning) return;
+
+            const moveDistance = player.speed * deltaTime;
+            if (rightPressed && player.x < canvas.width - PADDLE_WIDTH) player.x += moveDistance;
+            if (leftPressed && player.x > 0) player.x -= moveDistance;
+
             for (let i = balls.length - 1; i >= 0; i--) {
                 const ball = balls[i];
-                ball.x += ball.dx; ball.y += ball.dy;
-
-                if (ball.x + ball.radius > canvas.width) { ball.x = canvas.width - ball.radius; ball.dx *= -1; sounds.hit(); } 
-                else if (ball.x - ball.radius < 0) { ball.x = ball.radius; ball.dx *= -1; sounds.hit(); }
-
-                if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.dy *= -1; sounds.hit(); }
-
-                const barrierTop = player.y - BARRIER_HEIGHT;
+                ball.x += ball.dx * deltaTime; ball.y += ball.dy * deltaTime;
+                if (ball.x < BALL_RADIUS || ball.x > canvas.width - BALL_RADIUS) ball.dx *= -1;
+                if (ball.y < BALL_RADIUS) ball.dy *= -1;
+                const barrierTop = player.y - player.height * 0.2;
                 const barrierWidth = player.shieldWidth;
                 const barrierX = player.x - (barrierWidth - player.width) / 2;
-
-                if (ball.y + ball.radius > barrierTop && ball.y - ball.radius < player.y + player.height && ball.x + ball.radius > barrierX && ball.x - ball.radius < barrierX + barrierWidth) {
-                    ball.y = barrierTop - ball.radius;
-                    let collidePoint = (ball.x - (player.x + player.width / 2)) / (player.width * 0.75);
+                if (ball.y + BALL_RADIUS > barrierTop && ball.x > barrierX && ball.x < barrierX + barrierWidth) {
+                    ball.y = barrierTop - BALL_RADIUS;
+                    let collidePoint = (ball.x - (player.x + PADDLE_WIDTH / 2)) / (PADDLE_WIDTH / 2);
                     let angle = collidePoint * (Math.PI / 3);
-                    angle = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, angle));
-                    ball.dx = BALL_SPEED * Math.sin(angle);
-                    ball.dy = -BALL_SPEED * Math.cos(angle);
+                    ball.dx = ballSpeed * Math.sin(angle);
+                    ball.dy = -ballSpeed * Math.cos(angle);
                     sounds.hit();
                 }
-
-                if (ball.y - ball.radius > canvas.height) { balls.splice(i, 1); }
+                if (ball.y > canvas.height) { balls.splice(i, 1); }
             }
             if (balls.length === 0 && gameStarted && !gameOver && !isLevelTransitioning) {
                 lives--;
@@ -541,18 +566,9 @@
                 } else {
                     sounds.playerHit();
                     const angle = (Math.random() - 0.5) * Math.PI / 3;
-                    balls.push({ x: canvas.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false }); 
+                    balls.push({ x: canvas.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false }); 
                 }
             }
-        }
-
-        function update() {
-            if (isLevelTransitioning) return;
-
-            if (rightPressed && player.x < canvas.width - player.width) player.x += player.speed;
-            if (leftPressed && player.x > 0) player.x -= player.speed;
-            
-            updateBalls();
 
             let firstX = canvas.width, lastX = 0, allDestroyed = true, reachBottom = false;
             invadersMoveDown = false;
@@ -561,28 +577,26 @@
             
             invaders.forEach(c => c.forEach(invader => {
                 if (invader.status === 1) {
-                    invader.x += invaderSpeed * invadersMoveDirection; if(invadersMoveDown) invader.y += INVADER_HEIGHT;
-                    if (invader.y + invader.height > player.y) reachBottom = true;
-
+                    invader.x += invaderSpeed * invadersMoveDirection * deltaTime;
+                    if(invadersMoveDown) invader.y += INVADER_HEIGHT;
+                    if (invader.y + INVADER_HEIGHT > player.y) reachBottom = true;
                     for (let i = balls.length - 1; i >= 0; i--) {
                         const ball = balls[i];
-                        const invaderHitboxX = invader.x + INVADER_HITBOX_INSET_X;
-                        const invaderHitboxY = invader.y + INVADER_HITBOX_INSET_Y;
-                        const invaderHitboxWidth = invader.width - 2 * INVADER_HITBOX_INSET_X;
-                        const invaderHitboxHeight = invader.height - 2 * INVADER_HITBOX_INSET_Y;
+                        const invaderHitboxX = invader.x + INVADER_WIDTH * INVADER_HITBOX_INSET_X_RATIO;
+                        const invaderHitboxY = invader.y + INVADER_HEIGHT * INVADER_HITBOX_INSET_Y_RATIO;
+                        const invaderHitboxWidth = INVADER_WIDTH * (1 - 2 * INVADER_HITBOX_INSET_X_RATIO);
+                        const invaderHitboxHeight = INVADER_HEIGHT * (1 - 2 * INVADER_HITBOX_INSET_Y_RATIO);
 
                         if (ball.x + ball.radius > invaderHitboxX && ball.x - ball.radius < invaderHitboxX + invaderHitboxWidth && ball.y + ball.radius > invaderHitboxY && ball.y - ball.radius < invaderHitboxY + invaderHitboxHeight) {
                              sounds.destroy();
-                             if (!ball.isPiercing) {
-                                ball.dy *= -1;
-                             }
+                             if (!ball.isPiercing) ball.dy *= -1;
                              invader.status = 0; score += 10; 
                              if (invader.drop) {
-                                 items.push({x: invader.x + invader.width / 2, y: invader.y, type: invader.drop});
+                                 items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: invader.drop});
                                  invader.drop = null;
                              } else if (Math.random() < ITEM_DROP_CHANCE) {
                                  const itemType = Math.random() < MULTIBALL_CHANCE && balls.length < 3 ? 'multiBall' : 'life';
-                                 items.push({x: invader.x + invader.width / 2, y: invader.y, type: itemType});
+                                 items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: itemType});
                              }
                              updateUI();
                              break;
@@ -596,33 +610,28 @@
                 isLevelTransitioning = true;
                 level++;
                 sounds.win();
-                setTimeout(() => {
-                    startNextLevel();
-                    isLevelTransitioning = false;
-                }, 1500);
+                setTimeout(() => { startNextLevel(); isLevelTransitioning = false; }, 1500);
                 return;
             }
 
             frameCount++;
             if (frameCount % (Math.max(20, 90 - level * 4)) === 0 && Math.random() < (0.15 + level * 0.04)) {
                 let shooters = []; invaders.forEach(c => { for(let r=INVADER_ROWS-1; r>=0; r--) { if(c[r].status===1) { shooters.push(c[r]); break; }}});
-                if(shooters.length > 0) { const s = shooters[Math.floor(Math.random() * shooters.length)]; lasers.push({x: s.x + s.width / 2 - LASER_WIDTH / 2, y: s.y + s.height }); sounds.laser(); }
+                if(shooters.length > 0) { const s = shooters[Math.floor(Math.random() * shooters.length)]; lasers.push({x: s.x + INVADER_WIDTH / 2 - LASER_WIDTH / 2, y: s.y + INVADER_HEIGHT }); sounds.laser(); }
             }
             lasers.forEach((l, i) => {
-                l.y += LASER_SPEED; if (l.y > canvas.height) lasers.splice(i, 1);
-                
+                l.y += laserSpeed * deltaTime; if (l.y > canvas.height) lasers.splice(i, 1);
                 if (player.isInvincible) return;
-
-                const playerHitboxX = player.x + PLAYER_HITBOX_INSET_X;
-                const playerHitboxY = player.y + PLAYER_HITBOX_INSET_Y;
-                const playerHitboxWidth = player.width - 2 * PLAYER_HITBOX_INSET_X;
-                const playerHitboxHeight = player.height - PLAYER_HITBOX_INSET_Y;
+                const playerHitboxX = player.x + PADDLE_WIDTH * PLAYER_HITBOX_INSET_X_RATIO;
+                const playerHitboxY = player.y + PADDLE_HEIGHT * PLAYER_HITBOX_INSET_Y_RATIO;
+                const playerHitboxWidth = PADDLE_WIDTH * (1 - 2 * PLAYER_HITBOX_INSET_X_RATIO);
+                const playerHitboxHeight = PADDLE_HEIGHT * (1 - PLAYER_HITBOX_INSET_Y_RATIO);
                 if (l.y + LASER_HEIGHT > playerHitboxY && l.y < playerHitboxY + playerHitboxHeight && l.x + LASER_WIDTH > playerHitboxX && l.x < playerHitboxX + playerHitboxWidth) {
                      lasers.splice(i, 1); lives--; sounds.playerHit(); triggerScreenEffect(); if (lives <= 0) handleGameOver(false); updateUI();
                 }
             });
             items.forEach((item, i) => {
-                item.y += ITEM_SPEED; if (item.y > canvas.height) items.splice(i, 1);
+                item.y += itemSpeed * deltaTime; if (item.y > canvas.height) items.splice(i, 1);
                 const itemHitboxX = item.x - ITEM_SIZE / 2;
                 const itemHitboxY = item.y - ITEM_SIZE / 2;
                 if(itemHitboxY + ITEM_SIZE > player.y && itemHitboxY < player.y + PADDLE_HEIGHT && itemHitboxX + ITEM_SIZE > player.x && itemHitboxX < player.x + PADDLE_WIDTH) {
@@ -631,31 +640,24 @@
                          sounds.getMultiBall();
                          if (balls.length < 3) {
                              const angle = (Math.random() - 0.5) * Math.PI / 3;
-                             balls.push({ x: player.x + player.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: BALL_SPEED * Math.sin(angle), dy: -BALL_SPEED * Math.cos(angle), isPiercing: false });
+                             balls.push({ x: player.x + player.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false });
                          }
                      } else if (item.type === 'pierce') {
                          sounds.getPierce();
                          balls.forEach(b => b.isPiercing = true);
                          if (pierceTimeoutId) clearTimeout(pierceTimeoutId);
-                         pierceTimeoutId = setTimeout(() => {
-                             balls.forEach(b => b.isPiercing = false);
-                         }, PIERCE_DURATION);
+                         pierceTimeoutId = setTimeout(() => { balls.forEach(b => b.isPiercing = false); }, PIERCE_DURATION);
                      } else if(item.type === 'wideShield') {
                          sounds.getShield();
                          player.shieldEnhanced = true;
                          player.shieldWidth = PADDLE_WIDTH * 2.2;
                          if(shieldTimeoutId) clearTimeout(shieldTimeoutId);
-                         shieldTimeoutId = setTimeout(() => {
-                             player.shieldWidth = PADDLE_WIDTH * 1.6;
-                             player.shieldEnhanced = false;
-                         }, SHIELD_EXPAND_DURATION);
+                         shieldTimeoutId = setTimeout(() => { player.shieldWidth = PADDLE_WIDTH * 1.6; player.shieldEnhanced = false; }, SHIELD_EXPAND_DURATION);
                      } else if (item.type === 'invincible') {
                          sounds.getInvincible();
                          player.isInvincible = true;
                          if(invincibleTimeoutId) clearTimeout(invincibleTimeoutId);
-                         invincibleTimeoutId = setTimeout(() => {
-                            player.isInvincible = false;
-                         }, INVINCIBLE_DURATION);
+                         invincibleTimeoutId = setTimeout(() => { player.isInvincible = false; }, INVINCIBLE_DURATION);
                      }
                      items.splice(i, 1);
                      updateUI();
@@ -668,9 +670,13 @@
             drawStars(); drawInvaders(); drawLasers(); drawItems(); drawPlayer(); drawBalls();
         }
         
-        function gameLoop() {
+        let lastTime = 0;
+        function gameLoop(timestamp) {
             if (!gameStarted) return;
-            update(); draw();
+            const deltaTime = (timestamp - lastTime) / 16.67; // 60fpsを基準
+            lastTime = timestamp;
+            update(deltaTime);
+            draw();
             if (!gameOver) requestAnimationFrame(gameLoop);
         }
 
@@ -696,27 +702,24 @@
 
         startButton.addEventListener('click', async () => { 
             await Tone.start();
+            console.log("AudioContext started by user gesture.");
             startScreen.classList.remove('active');
             resetGame();
-            gameLoop();
+            requestAnimationFrame(gameLoop);
         });
         restartButton.addEventListener('click', () => {
             gameOverScreen.classList.remove('active');
             if (hasSharedThisSession) {
                 resetGame();
-                gameLoop();
+                requestAnimationFrame(gameLoop);
             } else {
                 playAdSimulation();
             }
         });
 
-        function handleShareClick(e) {
-            hasSharedThisSession = true;
-        }
+        function handleShareClick(e) { hasSharedThisSession = true; }
 
-        shareButtons.querySelectorAll('a').forEach(button => {
-            button.addEventListener('click', handleShareClick);
-        });
+        shareButtons.querySelectorAll('a').forEach(button => button.addEventListener('click', handleShareClick));
         
         shareButtonsAd.querySelectorAll('a').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -724,14 +727,14 @@
                 clearInterval(adTimerInterval);
                 adScreen.classList.remove('active');
                 resetGame();
-                gameLoop();
+                requestAnimationFrame(gameLoop);
             });
         });
 
         function playAdSimulation() {
             adScreen.classList.add('active');
             shareButtonsAd.style.display = 'flex';
-            let timeLeft = 5;
+            let timeLeft = 7;
             adTimerEl.textContent = timeLeft;
             adTimerInterval = setInterval(() => {
                 timeLeft--;
@@ -740,25 +743,69 @@
                     clearInterval(adTimerInterval);
                     adScreen.classList.remove('active');
                     resetGame();
-                    gameLoop();
+                    requestAnimationFrame(gameLoop);
                 }
             }, 1000);
         }
         
+        function resizeCanvas() {
+            const gameWrapper = document.getElementById('game-wrapper');
+            const { width, height } = gameWrapper.getBoundingClientRect();
+            
+            const aspectRatio = 4 / 5;
+            let newWidth = width;
+            let newHeight = width / aspectRatio;
+
+            if (newHeight > height) {
+                newHeight = height;
+                newWidth = height * aspectRatio;
+            }
+            
+            canvas.style.width = `${newWidth}px`;
+            canvas.style.height = `${newHeight}px`;
+            canvas.width = 480;
+            canvas.height = 600;
+
+            PADDLE_WIDTH = canvas.width * PADDLE_WIDTH_RATIO;
+            PADDLE_HEIGHT = canvas.height * PADDLE_HEIGHT_RATIO;
+            BALL_RADIUS = canvas.width * BALL_RADIUS_RATIO;
+            LASER_WIDTH = canvas.width * LASER_WIDTH_RATIO;
+            LASER_HEIGHT = canvas.height * LASER_HEIGHT_RATIO;
+            ITEM_SIZE = canvas.width * ITEM_SIZE_RATIO;
+            PADDLE_Y = canvas.height - PADDLE_HEIGHT * 2.5;
+
+            INVADER_WIDTH = canvas.width * 0.075;
+            INVADER_HEIGHT = canvas.height * 0.04;
+            INVADER_PADDING = canvas.width * 0.025;
+            INVADER_OFFSET_TOP = canvas.height * 0.083;
+            INVADER_OFFSET_LEFT = (canvas.width - (INVADER_COLS * (INVADER_WIDTH + INVADER_PADDING))) / 2;
+            
+            ballSpeed = canvas.height * BASE_SPEED;
+            laserSpeed = canvas.height * BASE_SPEED;
+            itemSpeed = canvas.height * (BASE_SPEED / 2.5);
+        }
+        
+        window.onresize = resizeCanvas;
+
         window.onload = async () => {
             await initializeFirebase(); 
             drawStars(); 
             
+            console.log("Initializing audio...");
             try {
-                // Preload BGM
-                await bgmPlayer.load(BGM_URL);
-                startButton.disabled = false;
-                startButton.textContent = "START GAME";
+                await Tone.start();
+                console.log("Tone.start() successful.");
+                bgmPlayer.onload = () => {
+                    console.log("BGM Loaded successfully.");
+                    startButton.disabled = false;
+                    startButton.textContent = "START GAME";
+                };
             } catch(e) {
-                console.error("サウンドの読み込みに失敗しました。", e);
+                console.error("Audio initialization failed:", e);
                 startButton.textContent = "START (NO SOUND)";
                 startButton.disabled = false;
             }
+            resizeCanvas();
         };
 
     </script>
