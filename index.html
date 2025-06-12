@@ -199,6 +199,7 @@
         let touchStartX = null;
         let hasSharedThisSession = false;
         let adTimerInterval = null;
+        let audioInitialized = false;
 
         let db, auth, userId;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -748,15 +749,13 @@
             await initializeFirebase(); 
             drawStars(); 
             
-            startButton.disabled = true;
             try {
-                await Tone.start();
-                bgmPlayer.onload = () => {
-                    startButton.disabled = false;
-                    startButton.textContent = "START GAME";
-                };
+                // Preload BGM
+                await bgmPlayer.load(BGM_URL);
+                startButton.disabled = false;
+                startButton.textContent = "START GAME";
             } catch(e) {
-                console.error("サウンドの初期化に失敗しました。", e);
+                console.error("サウンドの読み込みに失敗しました。", e);
                 startButton.textContent = "START (NO SOUND)";
                 startButton.disabled = false;
             }
