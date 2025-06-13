@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Block Raiders</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -112,13 +115,18 @@
         .screen button { background-color: #fca311; color: #1a1a2e; border: none; padding: 15px 30px; font-size: 20px; font-family: inherit; border-radius: 8px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 0 #c87e07; margin-top: 20px; }
         .screen button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #c87e07; }
         .screen button:active { transform: translateY(2px); box-shadow: 0 2px 0 #c87e07; }
-        .share-buttons { margin-top: 25px; display: flex; gap: 15px; }
+        .share-buttons { margin-top: 25px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
         .share-buttons a { display: inline-block; padding: 10px 15px; border-radius: 5px; color: white; text-decoration: none; font-size: 14px; transition: transform 0.2s; }
         .share-buttons a:hover { transform: scale(1.1); }
         .share-x { background-color: #000000; }
         .share-facebook { background-color: #1877F2; }
         .share-line { background-color: #00B900; }
+        .share-tiktok { background-color: #000000; }
+        .share-instagram { background: #d6249f; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); }
         #adContainer a { display: block; margin-bottom: 15px;}
+        #sound-toggle-container { margin-top: 25px; }
+        #sound-toggle { display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        #sound-toggle label { margin-right: 10px; }
 
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
@@ -149,6 +157,12 @@
                     <h2>Block Raiders</h2>
                     <p>High Score: <span id="startHighScore">0</span></p>
                     <button id="startButton" disabled>LOADING...</button>
+                    <div id="sound-toggle-container">
+                        <div id="sound-toggle">
+                             <label for="sound-checkbox">SOUND</label>
+                            <input type="checkbox" id="sound-checkbox" checked>
+                        </div>
+                    </div>
                 </div>
                 <div id="gameOverScreen" class="screen">
                     <h2 id="gameOverTitle">GAME OVER</h2>
@@ -157,9 +171,11 @@
                     <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
                     <button id="restartButton">もう一度プレイ</button>
                     <div id="shareButtons" class="share-buttons">
-                        <a id="shareX" class="share-x" href="#" target="_blank">Xでシェア</a>
+                        <a id="shareX" class="share-x" href="#" target="_blank">X</a>
                         <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
                         <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
+                        <a id="shareTikTok" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
+                        <a id="shareInstagram" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
                     </div>
                 </div>
                  <div id="adScreen" class="screen">
@@ -171,20 +187,19 @@
                     <p><span id="adTimer">7</span>秒後にリスタートします</p>
                     <div id="shareButtonsAd" class="share-buttons">
                         <p style="font-size: 14px; margin-bottom: 10px;">シェアして広告をスキップ！</p>
-                        <a id="shareXAd" class="share-x" href="#" target="_blank">Xでシェア</a>
+                        <a id="shareXAd" class="share-x" href="#" target="_blank">X</a>
                         <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
                         <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
+                        <a id="shareTikTokAd" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
+                        <a id="shareInstagramAd" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
-        
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gameContainer = document.getElementById('gameContainer');
@@ -196,6 +211,7 @@
         const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
         const muteButton = document.getElementById('muteButton');
+        const soundCheckbox = document.getElementById('sound-checkbox');
         const adScreen = document.getElementById('adScreen');
         const adTimerEl = document.getElementById('adTimer');
         const shareButtons = document.getElementById('shareButtons');
@@ -218,8 +234,16 @@
         const PLAYER_HITBOX_INSET_X_RATIO = 0.18;
         const PLAYER_HITBOX_INSET_Y_RATIO = 0.18;
 
-        const BASE_SPEED = 0.007;
+        const BASE_SPEED = 0.01575; 
         let ballSpeed, laserSpeed, itemSpeed;
+
+        const ITEM_DROP_CHANCE = 0.09; 
+        const MULTIBALL_CHANCE = 0.5;
+        const PIERCE_DURATION = 8000;
+        const SHIELD_EXPAND_DURATION = 10000;
+        const INVINCIBLE_DURATION = 8000;
+        const GAME_URL = "https://kujo-jotarou.github.io/my-game-assets/";
+        const BGM_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3";
 
         let player, balls, invaders, lasers, items, stars;
         let score, lives, level, highScore = 0;
@@ -232,6 +256,7 @@
         let touchStartX = null;
         let hasSharedThisSession = false;
         let adTimerInterval = null;
+        let audioInitialized = false;
 
         let db, auth, userId;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -267,41 +292,72 @@
         };
 
         const bgmPlayer = new Tone.Player({
-            url: "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3",
+            url: BGM_URL,
             loop: true,
             volume: -12,
         }).toDestination();
         
-        function startBGM() { if (bgmPlayer.loaded && bgmPlayer.state !== 'started') { bgmPlayer.start(); } }
+        function startBGM() { if (bgmPlayer.loaded && bgmPlayer.state !== 'started' && !Tone.Master.mute) { bgmPlayer.start(); } }
         function stopBGM() { if(bgmPlayer.state === 'started') { bgmPlayer.stop(); } }
 
         async function initializeFirebase() {
-            try {
+             try {
+                if (typeof firebase === 'undefined' || typeof __firebase_config === 'undefined') {
+                    throw new Error("Firebase config not available");
+                }
                 const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app); auth = getAuth(app); setLogLevel('error');
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) { userId = user.uid; await loadHighScore(); }
-                    else { const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; if (token) { await signInWithCustomToken(auth, token); } else { await signInAnonymously(auth); } }
-                });
-            } catch (e) { console.error("Firebase init failed:", e); userId = `local-${crypto.randomUUID()}`; loadHighScore(); }
+                 if (!firebaseConfig.projectId) throw new Error("Firebase projectId is missing in config");
+                
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if(token) {
+                    await auth.signInWithCustomToken(token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+                userId = auth.currentUser.uid;
+                await loadHighScore();
+
+            } catch (e) { 
+                console.warn("Firebase init failed, falling back to local storage:", e.message); 
+                userId = `local-${crypto.randomUUID()}`;
+                loadHighScore();
+            }
         }
         async function loadHighScore() {
             if (!userId) return;
-            try {
-                const docRef = doc(db, `artifacts/${appId}/users/${userId}/highscores`, "gameData");
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) { highScore = docSnap.data().score || 0; }
-            } catch (e) { console.error("Firestore load failed:", e); highScore = parseInt(localStorage.getItem('blockRaidersHighScore') || '0', 10); }
+            if (db) {
+                try {
+                    const docRef = db.collection(`artifacts/${appId}/users/${userId}/highscores`).doc("gameData");
+                    const docSnap = await docRef.get();
+                    if (docSnap.exists) { highScore = docSnap.data().score || 0; }
+                } catch (e) {
+                    console.warn("Firestore load failed, using local storage:", e);
+                    highScore = parseInt(localStorage.getItem('blockRaidersHighScore') || '0', 10);
+                }
+            } else {
+                highScore = parseInt(localStorage.getItem('blockRaidersHighScore') || '0', 10);
+            }
             document.getElementById('startHighScore').textContent = highScore;
             document.getElementById('resultHighScore').textContent = highScore;
         }
         async function saveHighScore(newScore) {
             if (!userId) return;
-            try { await setDoc(doc(db, `artifacts/${appId}/users/${userId}/highscores`, "gameData"), { score: newScore }); }
-            catch (e) { console.error("Firestore save failed:", e); localStorage.setItem('blockRaidersHighScore', newScore); }
+            if (db) {
+                try {
+                    await db.collection(`artifacts/${appId}/users/${userId}/highscores`).doc("gameData").set({ score: newScore });
+                } catch (e) {
+                    console.warn("Firestore save failed, using local storage:", e);
+                    localStorage.setItem('blockRaidersHighScore', newScore);
+                }
+            } else {
+                 localStorage.setItem('blockRaidersHighScore', newScore);
+            }
         }
-
+        
         function drawPlayerShape(x, y, width, height) {
             const w = width / 10;
             const h = height / 7;
@@ -469,7 +525,7 @@
         function resetGame() {
             score = 0; lives = 3; level = 1; gameStarted = true; gameOver = false;
             isLevelTransitioning = false;
-            hasSharedThisSession = false;
+            lastTime = 0; 
             balls = [];
             startNextLevel();
             startBGM();
@@ -477,8 +533,8 @@
 
         function startNextLevel() {
             levelEl.textContent = `LEVEL: ${level}`;
-            invaderSpeed = canvas.width * 0.0005;
-            player = { x: (canvas.width - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: canvas.width * 0.015, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
+            invaderSpeed = canvas.width * 0.00075;
+            player = { x: (canvas.width - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: canvas.width * 0.0225, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
             
             const currentBallCount = balls.length > 0 ? balls.length : 1;
             balls = [];
@@ -511,7 +567,7 @@
             stopBGM();
             document.getElementById('gameOverTitle').textContent = isWin ? "STAGE CLEAR!" : "GAME OVER";
             if (isWin) sounds.win(); else sounds.gameOver();
-            if (score > highScore) { highScore = score; saveHighScore(highScore); }
+            if (score > highScore) { saveHighScore(score); highScore = score; }
             document.getElementById('resultLevel').textContent = level;
             document.getElementById('resultScore').textContent = score;
             document.getElementById('resultHighScore').textContent = highScore;
@@ -544,7 +600,11 @@
                 const ball = balls[i];
                 ball.x += ball.dx * deltaTime; ball.y += ball.dy * deltaTime;
                 if (ball.x < BALL_RADIUS || ball.x > canvas.width - BALL_RADIUS) ball.dx *= -1;
-                if (ball.y < BALL_RADIUS) ball.dy *= -1;
+                if (ball.y < BALL_RADIUS) {
+                    ball.y = BALL_RADIUS;
+                    ball.dy = Math.abs(ball.dy);
+                    if (ball.dy < 0.1) ball.dy = ballSpeed * 0.1;
+                }
                 const barrierTop = player.y - player.height * 0.2;
                 const barrierWidth = player.shieldWidth;
                 const barrierX = player.x - (barrierWidth - player.width) / 2;
@@ -552,8 +612,9 @@
                     ball.y = barrierTop - BALL_RADIUS;
                     let collidePoint = (ball.x - (player.x + PADDLE_WIDTH / 2)) / (PADDLE_WIDTH / 2);
                     let angle = collidePoint * (Math.PI / 3);
+                    angle = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, angle));
                     ball.dx = ballSpeed * Math.sin(angle);
-                    ball.dy = -ballSpeed * Math.cos(angle);
+                    ball.dy = -Math.max(ballSpeed * Math.cos(angle), ballSpeed * 0.1); 
                     sounds.hit();
                 }
                 if (ball.y > canvas.height) { balls.splice(i, 1); }
@@ -589,7 +650,10 @@
 
                         if (ball.x + ball.radius > invaderHitboxX && ball.x - ball.radius < invaderHitboxX + invaderHitboxWidth && ball.y + ball.radius > invaderHitboxY && ball.y - ball.radius < invaderHitboxY + invaderHitboxHeight) {
                              sounds.destroy();
-                             if (!ball.isPiercing) ball.dy *= -1;
+                             if (!ball.isPiercing) {
+                                ball.dy *= -1;
+                                ball.dx += (Math.random() - 0.5) * 0.2; 
+                             }
                              invader.status = 0; score += 10; 
                              if (invader.drop) {
                                  items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: invader.drop});
@@ -673,7 +737,8 @@
         let lastTime = 0;
         function gameLoop(timestamp) {
             if (!gameStarted) return;
-            const deltaTime = (timestamp - lastTime) / 16.67; // 60fpsを基準
+            if (!lastTime) lastTime = timestamp;
+            const deltaTime = (timestamp - lastTime) / 16.67;
             lastTime = timestamp;
             update(deltaTime);
             draw();
@@ -698,17 +763,31 @@
         muteButton.addEventListener('click', () => {
             Tone.Master.mute = !Tone.Master.mute;
             muteButton.textContent = `SOUND: ${Tone.Master.mute ? 'OFF' : 'ON'}`;
+            soundCheckbox.checked = !Tone.Master.mute;
+        });
+        
+        soundCheckbox.addEventListener('change', () => {
+            Tone.Master.mute = !soundCheckbox.checked;
+            muteButton.textContent = `SOUND: ${Tone.Master.mute ? 'OFF' : 'ON'}`;
         });
 
         startButton.addEventListener('click', async () => { 
-            await Tone.start();
-            console.log("AudioContext started by user gesture.");
+            if (!audioInitialized) {
+                try {
+                    await Tone.start();
+                    audioInitialized = true;
+                    console.log("[DEBUG] AudioContext started by user gesture.");
+                } catch(e) {
+                    console.error("[ERROR] Could not start AudioContext on click:", e);
+                }
+            }
             startScreen.classList.remove('active');
             resetGame();
             requestAnimationFrame(gameLoop);
         });
         restartButton.addEventListener('click', () => {
             gameOverScreen.classList.remove('active');
+            lastTime = 0;
             if (hasSharedThisSession) {
                 resetGame();
                 requestAnimationFrame(gameLoop);
@@ -726,8 +805,7 @@
                 handleShareClick(e);
                 clearInterval(adTimerInterval);
                 adScreen.classList.remove('active');
-                resetGame();
-                requestAnimationFrame(gameLoop);
+                gameOverScreen.classList.add('active'); 
             });
         });
 
@@ -750,6 +828,7 @@
         
         function resizeCanvas() {
             const gameWrapper = document.getElementById('game-wrapper');
+            if(!gameWrapper) return;
             const { width, height } = gameWrapper.getBoundingClientRect();
             
             const aspectRatio = 4 / 5;
@@ -787,26 +866,25 @@
         
         window.onresize = resizeCanvas;
 
-        window.onload = async () => {
+        (async () => {
             await initializeFirebase(); 
             drawStars(); 
+            resizeCanvas();
             
-            console.log("Initializing audio...");
+            console.log("[DEBUG] Initializing BGM loading...");
+            startButton.disabled = true;
             try {
-                await Tone.start();
-                console.log("Tone.start() successful.");
-                bgmPlayer.onload = () => {
-                    console.log("BGM Loaded successfully.");
-                    startButton.disabled = false;
-                    startButton.textContent = "START GAME";
-                };
+                await bgmPlayer.load(BGM_URL);
+                console.log("[DEBUG] BGM Loaded successfully.");
+                startButton.disabled = false;
+                startButton.textContent = "START GAME";
             } catch(e) {
-                console.error("Audio initialization failed:", e);
+                console.error("[ERROR] サウンドの読み込みに失敗しました。", e);
                 startButton.textContent = "START (NO SOUND)";
                 startButton.disabled = false;
             }
-            resizeCanvas();
-        };
+        })();
+    });
 
     </script>
 </body>
