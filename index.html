@@ -30,6 +30,10 @@
             width: 100%;
             height: 100%;
             box-sizing: border-box;
+            transition: padding-bottom 0.3s ease;
+        }
+        #app-container.with-banner {
+            padding-bottom: 40px;
         }
         h1 {
             font-size: 24px;
@@ -159,7 +163,6 @@
         #sound-toggle { display: flex; align-items: center; justify-content: center; font-size: 14px; }
         #sound-toggle label { margin-right: 10px; }
         
-        /* --- 広告サイズ修正 --- */
         #bottom-banner-ad {
             position: fixed;
             bottom: 0;
@@ -173,7 +176,7 @@
             align-items: center;
             z-index: 100;
             flex-shrink: 0;
-            height: 40px; /* 高さを45pxから40pxに修正 */
+            height: 40px;
             overflow: hidden;
         }
         #banner-content {
@@ -195,6 +198,29 @@
             border-radius: 50%;
             color: white;
             cursor: pointer;
+        }
+        
+        #pauseButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            background-color: rgba(74, 85, 104, 0.7);
+            border: 1px solid #e0e0e0;
+            color: #e0e0e0;
+            width: 35px;
+            height: 35px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 35px;
+            text-align: center;
+            padding: 0;
+            display: none;
+        }
+        #pauseScreen h2 {
+            text-shadow: 2px 2px 4px #000;
         }
 
         @keyframes shake {
@@ -222,7 +248,7 @@
             </div>
             <div id="gameContainer">
                 <canvas id="gameCanvas"></canvas>
-                <div id="combo-display" style="position: absolute; color: #ff4500; font-size: 20px; opacity: 0; transition: opacity 0.5s, transform 0.5s; text-shadow: 1px 1px 3px #000;"></div>
+                <button id="pauseButton">||</button>
                 <div id="startScreen" class="screen active">
                     <h2>Block Raiders</h2>
                     <p>High Score: <span id="startHighScore">0</span></p>
@@ -251,6 +277,9 @@
                             <a id="shareInstagram" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
                         </div>
                     </div>
+                </div>
+                <div id="pauseScreen" class="screen">
+                    <h2>PAUSED</h2>
                 </div>
                  <div id="adScreen" class="screen">
                     <div id="adContainer">
@@ -299,6 +328,9 @@
         const adContainer = document.getElementById('adContainer');
         const bannerContent = document.getElementById('banner-content');
         const closeBannerBtn = document.getElementById('close-banner-btn');
+        const pauseButton = document.getElementById('pauseButton');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const appContainer = document.getElementById('app-container');
         
         const LOGICAL_WIDTH = 480;
         const LOGICAL_HEIGHT = 600;
@@ -340,8 +372,9 @@
         let player, balls, invaders, lasers, items, particles, stars;
         let score, lives, level, highScore = 0;
         let rightPressed = false, leftPressed = false;
-        let gameStarted = false, gameOver = false, isLevelTransitioning = false;
-        let invadersMoveDirection, invaderRowDirections, invadersMoveDown, invaderSpeed, frameCount;
+        let gameStarted = false, gameOver = false, isLevelTransitioning = false, isPaused = false;
+        let invadersMoveDirection, invaderRowDirections, invaderSpeed, frameCount;
+        let levelStartGracePeriod = false;
         let pierceTimeoutId = null;
         let shieldTimeoutId = null;
         let invincibleTimeoutId = null;
@@ -470,44 +503,61 @@
             }
         }
         
-        // --- 機体デザイン修正 ---
         function drawPlayerShape(x, y, width, height) {
-            const w = width / 10;
-            const h = height / 8; // 機体の縦の分割数を変更
-
-            // 新しい機体デザイン
-            ctx.fillStyle = "#E5E4E2"; // 本体色
-            const body = [
-                [0,0,0,0,1,1,0,0,0,0], 
-                [0,0,0,1,1,1,1,0,0,0], 
-                [0,0,1,1,1,1,1,1,0,0], 
-                [0,1,1,1,1,1,1,1,1,0], 
-                [1,1,0,1,1,1,1,0,1,1],
-                [1,0,0,0,0,0,0,0,0,1]
+            const w = width / 12;
+            const h = height / 10;
+        
+            ctx.fillStyle = "#B0C4DE";
+            const mainBody = [
+                [0,0,0,0,0,1,1,0,0,0,0,0],
+                [0,0,0,0,1,1,1,1,0,0,0,0],
+                [0,0,1,1,1,1,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,1,1,1,1,0],
+                [1,1,1,1,1,1,1,1,1,1,1,1],
+                [0,1,1,0,0,1,1,0,0,1,1,0],
             ];
-            for (let row = 0; row < body.length; row++) {
-                for (let col = 0; col < body[row].length; col++) {
-                    if (body[row][col]) {
+            for (let row = 0; row < mainBody.length; row++) {
+                for (let col = 0; col < mainBody[row].length; col++) {
+                    if (mainBody[row][col]) {
                         ctx.fillRect(x + col * w, y + row * h, w, h);
                     }
                 }
             }
+            
+            ctx.fillStyle = "#4682B4";
+            const wings = [
+                [1,1,0,0,0,0,0,0,0,0,1,1],
+                [0,1,1,0,0,0,0,0,0,1,1,0]
+            ];
+             for (let row = 0; row < wings.length; row++) {
+                for (let col = 0; col < wings[row].length; col++) {
+                    if (wings[row][col]) {
+                        ctx.fillRect(x + col * w, y + (3 + row) * h, w, h);
+                    }
+                }
+            }
 
-            // コックピット
-            ctx.fillStyle = '#7DF9FF'; // 水色
-            ctx.fillRect(x + 4 * w, y + 2 * h, w * 2, h);
-
-            // --- ジェット炎のアニメーション修正 ---
-            const flameColors = ['#FF4500', '#FFD700', '#FFA500']; // 炎の色を複数用意
-            const flameIndex = Math.floor(Date.now() / 100) % flameColors.length; // 時間で色を切り替え
+            ctx.fillStyle = "#FF6347";
+            const cockpit = [
+                [0,0,0,0,1,1,1,1,0,0,0,0]
+            ];
+             for (let row = 0; row < cockpit.length; row++) {
+                for (let col = 0; col < cockpit[row].length; col++) {
+                    if (cockpit[row][col]) {
+                        ctx.fillRect(x + col * w, y + (2 + row) * h, w, h);
+                    }
+                }
+            }
+        
+            const flameColors = ['#FF4500', '#FFD700', '#FFA500'];
+            const flameIndex = Math.floor(frameCount / 4) % flameColors.length;
             ctx.fillStyle = flameColors[flameIndex];
-
-            // 炎の形を少しランダムにする
-            const flameHeight = h * (1.5 + Math.random() * 0.5);
-            ctx.fillRect(x + 3 * w, y + 6 * h, w, flameHeight);
-            ctx.fillRect(x + 6 * w, y + 6 * h, w, flameHeight);
+            
+            const flameHeight1 = h * (2.0 + (frameCount % 5 === 0 ? Math.random() * 0.8 : 0.4));
+            const flameHeight2 = h * (2.0 + (frameCount % 6 === 0 ? Math.random() * 0.8 : 0.5));
+            ctx.fillRect(x + 5 * w, y + 6 * h, w, flameHeight1);
+            ctx.fillRect(x + 6 * w, y + 6 * h, w, flameHeight2);
         }
-
         
         function drawPlayer() {
             ctx.save();
@@ -709,20 +759,17 @@
             ctx.globalAlpha = 1.0;
         }
         
-        function drawScoreMultiplier() {
-            const display = document.getElementById('combo-display');
+        function drawComboText() {
             if (comboMultiplierDisplay && comboMultiplierDisplay.alpha > 0) {
-                const rect = canvas.getBoundingClientRect();
-                const scale = rect.width / LOGICAL_WIDTH;
-
-                display.innerText = comboMultiplierDisplay.text;
-                display.style.left = `${(comboMultiplierDisplay.x / LOGICAL_WIDTH * 100)}%`;
-                display.style.top = `${(comboMultiplierDisplay.y / LOGICAL_HEIGHT * 100)}%`;
-                display.style.fontSize = `${18 * scale}px`;
-                display.style.opacity = comboMultiplierDisplay.alpha;
-                display.style.transform = `translate(-50%, -50%) scale(${1 + (1-comboMultiplierDisplay.alpha)})`;
-            } else if(display) {
-                display.style.opacity = 0;
+                ctx.save();
+                ctx.globalAlpha = comboMultiplierDisplay.alpha;
+                ctx.font = "bold 20px 'Press Start 2P'";
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ff4500';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.fillText(comboMultiplierDisplay.text, comboMultiplierDisplay.x, comboMultiplierDisplay.y);
+                ctx.restore();
             }
         }
 
@@ -751,7 +798,7 @@
 
         function startNextLevel() {
             levelEl.textContent = `LEVEL: ${level}`;
-            invaderSpeed = LOGICAL_WIDTH * 0.00075;
+            invaderSpeed = LOGICAL_WIDTH * (0.0008 + level * 0.00005);
             player = { x: (LOGICAL_WIDTH - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: LOGICAL_WIDTH * 0.0225, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
             
             const currentBallCount = balls.length > 0 ? balls.length : 1;
@@ -762,9 +809,8 @@
             }
             
             lasers = []; items = []; 
-            invadersMoveDirection = 1; // レベル5未満用のグローバルな方向
-            invaderRowDirections = []; // レベル5以上用の列ごとの方向
-            invadersMoveDown = false; 
+            invadersMoveDirection = 1;
+            invaderRowDirections = [];
             frameCount = 0;
             invaders = []; const invColors = ['#e71d36', '#ff9f1c', '#fca311', '#2ec4b6', '#a2d2ff'];
             for (let c = 0; c < INVADER_COLS; c++) {
@@ -782,15 +828,16 @@
                 }
             }
             
-            // --- 敵の動き修正 ---
-            // 列ごとの移動方向を初期化
             for (let r = 0; r < INVADER_ROWS; r++) {
                 if (level >= 5) {
                     invaderRowDirections[r] = Math.random() < 0.5 ? 1 : -1;
                 } else {
-                    invaderRowDirections[r] = 1; // レベル5未満はすべて同じ方向
+                    invaderRowDirections[r] = 1;
                 }
             }
+            
+            levelStartGracePeriod = true;
+            setTimeout(() => { levelStartGracePeriod = false; }, 500);
 
             let allInvaders = invaders.flat();
             for (let i = allInvaders.length - 1; i > 0; i--) {
@@ -807,6 +854,10 @@
         function handleGameOver(isWin) {
             gameOver = true; gameStarted = false; isLevelTransitioning = false;
             stopBGM();
+            pauseButton.style.display = 'none';
+            pauseScreen.classList.remove('active');
+            isPaused = false;
+            
             document.getElementById('gameOverTitle').textContent = isWin ? "STAGE CLEAR!" : "GAME OVER";
             if (isWin) sounds.win(); else sounds.gameOver();
             if (score > highScore) { saveHighScore(score); highScore = score; }
@@ -879,21 +930,17 @@
                 }
             }
 
-            // --- 敵の動き修正 ---
-            invadersMoveDown = false;
+            let wallHit = false;
             let allDestroyed = true;
 
             if (level < 5) {
-                // レベル5未満のロジック (全体で動く)
                 let firstX = LOGICAL_WIDTH, lastX = 0;
                 invaders.forEach(c => c.forEach(i => { if (i.status > 0) { allDestroyed = false; firstX = Math.min(firstX, i.x); lastX = Math.max(lastX, i.x); }}));
-                if (lastX + INVADER_WIDTH > LOGICAL_WIDTH || firstX < 0) {
+                if (!levelStartGracePeriod && (lastX + INVADER_WIDTH > LOGICAL_WIDTH || firstX < 0)) {
                     invadersMoveDirection *= -1;
-                    invadersMoveDown = true;
+                    wallHit = true;
                 }
             } else {
-                // レベル5以上のロジック (列ごとに動く)
-                let wallHit = false;
                 for (let r = 0; r < INVADER_ROWS; r++) {
                     let firstX_row = LOGICAL_WIDTH, lastX_row = 0, rowExists = false;
                      for (let c = 0; c < INVADER_COLS; c++) {
@@ -905,14 +952,16 @@
                             lastX_row = Math.max(lastX_row, invader.x);
                         }
                     }
-                    if (rowExists && (lastX_row + INVADER_WIDTH > LOGICAL_WIDTH || firstX_row < 0)) {
+                    if (!levelStartGracePeriod && rowExists && (lastX_row + INVADER_WIDTH > LOGICAL_WIDTH || firstX_row < 0)) {
                         invaderRowDirections[r] *= -1;
                         wallHit = true;
                     }
                 }
-                if (wallHit) {
-                    invadersMoveDown = true;
-                }
+            }
+            
+            if(wallHit) {
+                const descentAmount = (INVADER_HEIGHT / 4) + (level * 0.3);
+                invaders.forEach(c => c.forEach(i => i.y += descentAmount));
             }
             
             let reachBottom = false;
@@ -920,7 +969,6 @@
                 if (invader.status > 0) {
                     let moveDirection = (level < 5) ? invadersMoveDirection : invaderRowDirections[rowIndex];
                     invader.x += invaderSpeed * moveDirection * deltaTime;
-                    if(invadersMoveDown) invader.y += INVADER_HEIGHT;
                     if (invader.y + INVADER_HEIGHT > player.y) reachBottom = true;
                     
                     for (let i = balls.length - 1; i >= 0; i--) {
@@ -1056,12 +1104,12 @@
             drawPlayer();
             drawBalls();
             drawParticles();
+            drawComboText();
         }
         
         let lastTime = 0;
         function gameLoop(timestamp) {
-            if (!gameStarted) {
-                cancelAnimationFrame(animationFrameId);
+            if (!gameStarted || isPaused) {
                 return;
             };
 
@@ -1070,24 +1118,53 @@
             
             update(deltaTime);
             draw();
-            drawScoreMultiplier(); 
 
             lastTime = timestamp;
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        document.addEventListener('keydown', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true; });
-        document.addEventListener('keyup', e => { if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false; });
+        function togglePause() {
+            if (!gameStarted || gameOver) return;
+            sounds.buttonClick();
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseScreen.classList.add('active');
+                pauseButton.innerHTML = '▶';
+                stopBGM();
+                cancelAnimationFrame(animationFrameId);
+            } else {
+                pauseScreen.classList.remove('active');
+                pauseButton.innerHTML = '||';
+                startBGM();
+                lastTime = 0; // ポーズ解除時にデルタタイムをリセット
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        pauseButton.addEventListener('click', togglePause);
+
+        document.addEventListener('keydown', e => { 
+            if (isPaused) return;
+            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true; 
+        });
+        document.addEventListener('keyup', e => { 
+            if (isPaused) return;
+            if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false; 
+        });
         
         document.addEventListener('mousemove', e => {
-            if(!gameStarted || gameOver || !player) return;
+            if(isPaused || !gameStarted || gameOver || !player) return;
             const rect = canvas.getBoundingClientRect();
             let newX = (e.clientX - rect.left) / rect.width * LOGICAL_WIDTH - (player.width / 2);
             player.x = Math.max(0, Math.min(newX, LOGICAL_WIDTH - player.width));
         });
 
-        canvas.addEventListener('touchstart', e => { e.preventDefault(); touchStartX = e.touches[0].clientX; }, { passive: false });
+        canvas.addEventListener('touchstart', e => { 
+            if (isPaused) return;
+            e.preventDefault(); touchStartX = e.touches[0].clientX; 
+        }, { passive: false });
         canvas.addEventListener('touchmove', e => {
+            if(isPaused) return;
             e.preventDefault();
             if(touchStartX === null || !gameStarted || gameOver || !player) return;
             const rect = canvas.getBoundingClientRect();
@@ -1097,7 +1174,10 @@
             player.x = Math.max(0, Math.min(player.x, LOGICAL_WIDTH - PADDLE_WIDTH));
             touchStartX = currentX;
         }, { passive: false });
-        canvas.addEventListener('touchend', e => { e.preventDefault(); touchStartX = null; });
+        canvas.addEventListener('touchend', e => { 
+            if (isPaused) return;
+            e.preventDefault(); touchStartX = null; 
+        });
         
         muteButton.addEventListener('click', () => {
             sounds.buttonClick();
@@ -1123,6 +1203,7 @@
                 }
             }
             startScreen.classList.remove('active');
+            pauseButton.style.display = 'block';
             resetGame();
             requestAnimationFrame(gameLoop);
         });
@@ -1131,6 +1212,7 @@
             gameOverScreen.classList.remove('active');
             lastTime = 0;
             if (hasSharedEver) {
+                pauseButton.style.display = 'block';
                 resetGame();
                 requestAnimationFrame(gameLoop);
             } else {
@@ -1142,6 +1224,7 @@
             hasSharedEver = true; 
             localStorage.setItem('blockRaidersShared', 'true');
             bottomBannerAd.style.display = 'none';
+            appContainer.classList.remove('with-banner');
             clearInterval(bannerInterval);
         }
 
@@ -1170,6 +1253,7 @@
 
         adRestartButton.addEventListener('click', () => {
             adScreen.classList.remove('active');
+            pauseButton.style.display = 'block';
             resetGame();
             requestAnimationFrame(gameLoop);
         });
@@ -1247,6 +1331,8 @@
             if(hasSharedEver) return;
             bannerContent.innerHTML = bannerAds[currentAdIndex];
             bottomBannerAd.style.display = 'flex';
+            appContainer.classList.add('with-banner');
+            resizeCanvas(); // 広告表示後にリサイズを実行
             currentAdIndex = (currentAdIndex + 1) % bannerAds.length;
         }
         
@@ -1259,6 +1345,8 @@
         if(closeBannerBtn) {
             closeBannerBtn.addEventListener('click', () => {
                 bottomBannerAd.style.display = 'none';
+                appContainer.classList.remove('with-banner');
+                resizeCanvas(); // 広告非表示後にリサイズを実行
                 clearInterval(bannerInterval);
             });
         }
