@@ -4,14 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Block Raiders</title>
+
+    <!-- OGPタグの追加 -->
+    <meta property="og:title" content="Block Raiders">
+    <meta property="og:description" content="A retro arcade-style block-breaking game. Break all the blocks and aim for a high score!">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://kujo-jotarou.github.io/my-game-assets/">
+    <meta property="og:image" content="https://placehold.co/1200x630/1a1a2e/fca311/png?text=BLOCK%20RAIDERS&font=orbitron">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- OGPタグここまで -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@700&display=swap" rel="stylesheet">
     <style>
+        /* 基本的なページスタイル */
         html, body {
             margin: 0;
             padding: 0;
@@ -22,38 +33,24 @@
             color: #e0e0e0;
             font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
         }
-        #app-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
+        body.with-banner {
+            padding-bottom: 40px; /* バナーの高さ分 */
             box-sizing: border-box;
-            transition: padding-bottom 0.3s ease;
         }
-        #app-container.with-banner {
-            padding-bottom: 40px;
-        }
-        h1 {
-            font-size: 24px;
-            color: #fca311;
-            margin: 10px 0;
-            text-shadow: 2px 2px #000;
-            flex-shrink: 0;
-        }
+        /* ゲーム全体を中央に配置するためのコンテナ */
         #game-wrapper {
             width: 100%;
             max-width: 600px;
-            flex-grow: 1;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 0;
+            margin: 0 auto;
             padding: 10px;
             box-sizing: border-box;
         }
+        /* スコアやライフなどのUIコンテナ */
         #uiContainer {
             display: flex;
             justify-content: space-between;
@@ -62,23 +59,38 @@
             padding: 5px 0;
             font-size: 14px;
             flex-shrink: 0;
-            box-sizing: border-box; 
         }
+        /* ゲームのメイン描画領域 */
         #gameContainer {
             position: relative;
             width: 100%;
             flex-grow: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(252, 163, 17, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
         }
+        /* ゲーム用キャンバス */
         canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background-color: #0f0f1b;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(252, 163, 17, 0.5);
-            touch-action: none;
+        }
+        
+        #logo-image {
+             position: absolute;
+             top: 15%;
+             left: 50%;
+             transform: translateX(-50%);
+             width: 80%;
+             max-width: 400px;
+             height: auto;
+             z-index: 12;
         }
         #lives {
             color: #ff4d6d;
@@ -94,6 +106,7 @@
             border-radius: 5px;
             cursor: pointer;
         }
+        /* スタート・ゲームオーバー等の画面スタイル */
         .screen {
             position: absolute;
             top: 0;
@@ -113,6 +126,10 @@
             z-index: 10;
             border-radius: 10px;
         }
+        #startScreen {
+             background-color: rgba(26, 26, 46, 0.7);
+             z-index: 11;
+        }
         .screen.active {
             visibility: visible;
             opacity: 1;
@@ -120,9 +137,10 @@
         }
         .screen h2 { font-size: 40px; margin-bottom: 20px; color: #fca311; }
         .screen p { font-size: 20px; margin: 10px 0; }
-        .screen button { background-color: #fca311; color: #1a1a2e; border: none; padding: 15px 30px; font-size: 20px; font-family: inherit; border-radius: 8px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 0 #c87e07; margin-top: 20px; }
+        .screen button { background-color: #fca311; color: #1a1a2e; border: none; padding: 15px 30px; font-size: 20px; font-family: 'Press Start 2P', 'Courier New', Courier, monospace; border-radius: 8px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 0 #c87e07; margin-top: 20px; }
         .screen button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #c87e07; }
         .screen button:active { transform: translateY(2px); box-shadow: 0 2px 0 #c87e07; }
+        
         .share-buttons { 
             margin-top: 15px; 
             display: flex;
@@ -232,83 +250,92 @@
         .shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
+        
+        @media (max-width: 480px) {
+            #uiContainer {
+                font-size: 12px;
+            }
+            #muteButton {
+                font-size: 10px;
+                padding: 4px 8px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="app-container">
-        <h1>Block Raiders</h1>
-        <div id="game-wrapper">
-            <div id="uiContainer">
-                <div>
-                    <span id="score">SCORE: 0</span><br>
-                    <span id="level">LEVEL: 1</span>
-                </div>
-                <div id="lives">LIVES: 3</div>
-                <button id="muteButton">SOUND: ON</button>
+    <div id="game-wrapper">
+        <div id="uiContainer">
+            <div>
+                <span id="score">SCORE: 0</span><br>
+                <span id="level">LEVEL: 1</span>
             </div>
-            <div id="gameContainer">
-                <canvas id="gameCanvas"></canvas>
-                <button id="pauseButton">||</button>
-                <div id="startScreen" class="screen active">
-                    <h2>Block Raiders</h2>
+            <div id="lives">LIVES: 3</div>
+            <button id="muteButton">SOUND: ON</button>
+        </div>
+        <div id="gameContainer">
+            <canvas id="gameCanvas"></canvas>
+            <button id="pauseButton">||</button>
+            <div id="startScreen" class="screen active">
+                <img id="logo-image" src="https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E3%82%AA%E3%83%BC%E3%83%97%E3%83%8B%E3%83%B3%E3%82%B0.png" alt="Block Raiders Logo">
+                <div style="position: absolute; bottom: 10%; width: 100%; text-align: center;">
                     <p>High Score: <span id="startHighScore">0</span></p>
                     <button id="startButton" disabled>LOADING...</button>
                     <div id="sound-toggle-container">
                         <div id="sound-toggle">
                              <label for="sound-checkbox">SOUND</label>
-                            <input type="checkbox" id="sound-checkbox" checked>
-                        </div>
+                        <input type="checkbox" id="sound-checkbox" checked>
                     </div>
                 </div>
-                <div id="gameOverScreen" class="screen">
-                    <h2 id="gameOverTitle">GAME OVER</h2>
-                    <p>LEVEL: <span id="resultLevel">1</span></p>
-                    <p>SCORE: <span id="resultScore">0</span></p>
-                    <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
-                    <button id="restartButton">もう一度プレイ</button>
-                    <div class="share-buttons">
-                        <div class="share-buttons-row">
-                            <a id="shareX" class="share-x" href="#" target="_blank">X</a>
-                            <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
-                            <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
-                        </div>
-                        <div class="share-buttons-row">
-                             <a id="shareTikTok" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
-                            <a id="shareInstagram" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
-                        </div>
+            </div>
+            <div id="gameOverScreen" class="screen">
+                <h2 id="gameOverTitle">GAME OVER</h2>
+                <p>LEVEL: <span id="resultLevel">1</span></p>
+                <p>SCORE: <span id="resultScore">0</span></p>
+                <p>HIGH SCORE: <span id="resultHighScore">0</span></p>
+                <button id="restartButton">もう一度プレイ</button>
+                <div class="share-buttons">
+                    <div class="share-buttons-row">
+                        <a id="shareX" class="share-x" href="#" target="_blank">X</a>
+                        <a id="shareFacebook" class="share-facebook" href="#" target="_blank">Facebook</a>
+                        <a id="shareLine" class="share-line" href="#" target="_blank">LINE</a>
+                    </div>
+                    <div class="share-buttons-row">
+                         <a id="shareTikTok" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
+                        <a id="shareInstagram" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
                     </div>
                 </div>
-                <div id="pauseScreen" class="screen">
-                    <h2>PAUSED</h2>
-                </div>
-                 <div id="adScreen" class="screen">
-                    <div id="adContainer">
-                       </div>
-                    <p><span id="adTimer"></span></p>
-                    <button id="adRestartButton" style="display:none;">もう一度プレイ</button>
-                     <div class="share-buttons">
-                         <p style="font-size: 14px; margin-bottom: 10px; grid-column: 1 / -1; width: 100%; text-align: center;">シェアで今後表示しない</p>
-                        <div class="share-buttons-row">
-                            <a id="shareXAd" class="share-x" href="#" target="_blank">X</a>
-                            <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
-                            <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
-                        </div>
-                        <div class="share-buttons-row">
-                             <a id="shareTikTokAd" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
-                            <a id="shareInstagramAd" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
-                        </div>
+            </div>
+            <div id="pauseScreen" class="screen">
+                <h2>PAUSED</h2>
+            </div>
+             <div id="adScreen" class="screen">
+                <div id="adContainer">
+                   </div>
+                <p><span id="adTimer"></span></p>
+                <button id="adRestartButton" style="display:none;">もう一度プレイ</button>
+                 <div class="share-buttons">
+                     <p style="font-size: 14px; margin-bottom: 10px; grid-column: 1 / -1; width: 100%; text-align: center;">シェアで今後表示しない</p>
+                    <div class="share-buttons-row">
+                        <a id="shareXAd" class="share-x" href="#" target="_blank">X</a>
+                        <a id="shareFacebookAd" class="share-facebook" href="#" target="_blank">Facebook</a>
+                        <a id="shareLineAd" class="share-line" href="#" target="_blank">LINE</a>
+                    </div>
+                    <div class="share-buttons-row">
+                         <a id="shareTikTokAd" class="share-tiktok" href="https://www.tiktok.com/" target="_blank">TikTok</a>
+                        <a id="shareInstagramAd" class="share-instagram" href="https://www.instagram.com/" target="_blank">Instagram</a>
                     </div>
                 </div>
             </div>
         </div>
-        <div id="bottom-banner-ad">
-            <span id="banner-content"></span>
-            <button id="close-banner-btn">×</button>
-        </div>
+    </div>
+    <div id="bottom-banner-ad">
+        <span id="banner-content"></span>
+        <button id="close-banner-btn">×</button>
     </div>
     
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // DOM要素の取得
         const canvas = document.getElementById('gameCanvas');
         let ctx; 
         const gameContainer = document.getElementById('gameContainer');
@@ -330,50 +357,71 @@
         const closeBannerBtn = document.getElementById('close-banner-btn');
         const pauseButton = document.getElementById('pauseButton');
         const pauseScreen = document.getElementById('pauseScreen');
-        const appContainer = document.getElementById('app-container');
         
+        // 論理的なゲーム画面サイズ
         const LOGICAL_WIDTH = 480;
         const LOGICAL_HEIGHT = 600;
 
+        // レスポンシブ対応のゲーム要素サイズ比率
         const PADDLE_WIDTH_RATIO = 0.2; 
         const PADDLE_HEIGHT_RATIO = 0.04;
-        const BALL_RADIUS_RATIO = 0.01;
+        const BALL_RADIUS_RATIO = 0.013; 
         const LASER_WIDTH_RATIO = 0.01;
         const LASER_HEIGHT_RATIO = 0.025;
-        const ITEM_SIZE_RATIO = 0.025;
+        const BASE_ITEM_SIZE_RATIO = 0.04 * 2; 
         
-        let PADDLE_WIDTH, PADDLE_HEIGHT, BALL_RADIUS, LASER_WIDTH, LASER_HEIGHT, ITEM_SIZE, PADDLE_Y;
+        let PADDLE_WIDTH, PADDLE_HEIGHT, BALL_RADIUS, LASER_WIDTH, LASER_HEIGHT, PADDLE_Y;
+        let itemSizes = {}; 
 
         const INVADER_ROWS = 5, INVADER_COLS = 8;
         let INVADER_WIDTH, INVADER_HEIGHT, INVADER_PADDING, INVADER_OFFSET_TOP, INVADER_OFFSET_LEFT;
-
+        
+        // ヒットボックスの調整比率
         const INVADER_HITBOX_INSET_X_RATIO = 0.11;
         const INVADER_HITBOX_INSET_Y_RATIO = 0.08;
         const PLAYER_HITBOX_INSET_X_RATIO = 0.18;
         const PLAYER_HITBOX_INSET_Y_RATIO = 0.18;
 
-        const BASE_SPEED = 0.02268;
         let ballSpeed, laserSpeed, itemSpeed;
 
-        const ITEM_DROP_CHANCE = 0.09; 
-        const MULTIBALL_CHANCE = 0.5;
+        // ゲームバランス定数
         const PIERCE_DURATION = 8000;
         const SHIELD_EXPAND_DURATION = 10000;
         const INVINCIBLE_DURATION = 8000;
+        
+        // アセットURL
         const GAME_URL = "https://kujo-jotarou.github.io/my-game-assets/";
-        const BGM_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/bgm.MP3";
-        const BUTTON_CLICK_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E3%83%9C%E3%82%BF%E3%83%B3.mp3";
-        const ENEMY_DEATH_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E6%95%B5%E6%AD%BB%E4%BA%A1.mp3";
-        const ENEMY_HIT_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E6%95%B5%E8%A2%AB%E5%BC%BE.mp3";
-        const PLAYER_HIT_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E8%A2%AB%E5%BC%BE.mp3";
-        const HEAL_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E5%9B%9E%E5%BE%A9.mp3";
-        const POWERUP_URL = "https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E3%83%91%E3%83%AF%E3%83%BC%E3%82%A2%E3%83%83%E3%83%97.mp3";
+        const BGM_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/bgm.MP3";
+        const BUTTON_CLICK_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E3%83%9C%E3%82%BF%E3%83%B3.mp3";
+        const ENEMY_DEATH_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E6%95%B5%E6%AD%BB%E4%BA%A1.mp3";
+        const ENEMY_HIT_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E6%95%B5%E8%A2%AB%E5%BC%BE.mp3";
+        const PLAYER_HIT_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E8%A2%AB%E5%BC%BE.mp3";
+        const PADDLE_HIT_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E5%BC%BE%E3%81%8D.mp3";
+        const HEAL_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E5%9B%9E%E5%BE%A9.mp3";
+        const POWERUP_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/%E3%83%91%E3%83%AF%E3%83%BC%E3%82%A2%E3%83%83%E3%83%97.mp3";
+        const UFO_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/UFO.mp3";
+        const UFO_LASER_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/UFO%E3%83%AC%E3%83%BC%E3%82%B6%E3%83%BC.mp3";
+        const UFO_DEATH_URL = "https://cdn.jsdelivr.net/gh/Kujo-Jotarou/my-game-assets@main/UFO%E6%92%83%E7%A0%B4.mp3";
 
-        let player, balls, invaders, lasers, items, particles, stars;
+        const ICON_URLS = {
+            life: 'https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E3%83%8F%E3%83%BC%E3%83%88%E9%80%8F%E9%81%8E.png',
+            invincible: 'https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E7%84%A1%E6%95%B5%E9%80%8F%E9%81%8E.png',
+            multiBall: 'https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E5%BC%BE%E5%A2%97%E5%8A%A0%E9%80%8F%E9%81%8E.png',
+            pierce: 'https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E8%B2%AB%E9%80%9A%E5%BC%BE%E9%80%8F%E9%81%8E.png',
+            wideShield: 'https://raw.githubusercontent.com/Kujo-Jotarou/my-game-assets/main/%E5%B9%85UP%E9%80%8F%E9%81%8E.png'
+        };
+        const itemImages = {};
+
+
+        // ゲームオブジェクトと状態変数
+        let player, balls, invaders, lasers, ufo, ufoLasers, items, particles, stars;
         let score, lives, level, highScore = 0;
         let rightPressed = false, leftPressed = false;
-        let gameStarted = false, gameOver = false, isLevelTransitioning = false, isPaused = false;
-        let invadersMoveDirection, invaderRowDirections, invaderSpeed, frameCount;
+        let gameState = 'START'; // 'START', 'PLAYING', 'PAUSED', 'GAMEOVER'
+        let invadersMoveDirection = 1;
+        let invaderRowDirections = [];
+        let frameCount = 0;
+        let isLevelTransitioning = false;
         let levelStartGracePeriod = false;
         let pierceTimeoutId = null;
         let shieldTimeoutId = null;
@@ -383,32 +431,39 @@
         let adTimerInterval = null;
         let audioInitialized = false;
         let gameOverCount = 0;
-        let animationFrameId;
+        let animationLoopId;
         
+        let comboMultiplierDisplay, comboMultiplierDisplayTimeout;
         let comboCount = 0;
-        let scoreMultiplier = 1;
-        let comboMultiplierDisplayTimeout;
-        let comboMultiplierDisplay;
+        
+        let wideShieldDropsThisStage = 0;
+        let heartDropsThisStage = 0;
+        let invincibleDropsThisStage = 0;
+        let multiBallDropsThisStage = 0;
+        let pierceDropsThisStage = 0;
 
+        // Firebase関連
         let db, auth, userId;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+        // Tone.js サウンドエンジン
         const sfxBus = new Tone.Channel().toDestination();
         const melodySynth = new Tone.Synth({volume: -4}).connect(sfxBus);
 
-        let hitBuffer, destroyBuffer, playerHitBuffer, itemBuffer, healBuffer, buttonClickBuffer;
+        let hitBuffer, destroyBuffer, playerHitBuffer, itemBuffer, healBuffer, buttonClickBuffer, ufoBuffer, ufoLaserBuffer, ufoDestroyBuffer, paddleHitBuffer;
+        
+        let ufoSoundPlayer = null;
 
-        function playSound(buffer) {
+        function playSound(buffer, duration) {
             if (!audioInitialized || Tone.Master.mute || !buffer) return;
-            const player = new Tone.Player().toDestination();
-            player.buffer = buffer;
+            const player = new Tone.Player(buffer).toDestination();
             player.connect(sfxBus);
-            player.start();
-            setTimeout(() => {
+            player.start(Tone.now(), 0, duration);
+             setTimeout(() => {
                 if(player && !player.disposed){
                     player.dispose();
                 }
-            }, buffer.duration * 1000 + 100); 
+            }, (duration || buffer.duration) * 1000 + 100); 
         }
 
         const sounds = {
@@ -426,6 +481,7 @@
                 setTimeout(() => laserSynth.dispose(), 300);
             },
             playerHit: () => playSound(playerHitBuffer),
+            paddleHit: () => playSound(paddleHitBuffer),
             getItem: () => playSound(itemBuffer),
             getLife: () => playSound(healBuffer),
             getMultiBall: () => playSound(itemBuffer),
@@ -433,6 +489,8 @@
             getShield: () => playSound(itemBuffer),
             getInvincible: () => playSound(itemBuffer),
             buttonClick: () => playSound(buttonClickBuffer),
+            ufoLaser: () => playSound(ufoLaserBuffer, 1),
+            ufoDestroy: () => playSound(ufoDestroyBuffer),
             gameOver: () => { const now = Tone.now(); melodySynth.triggerAttackRelease('G3', '8n', now); melodySynth.triggerAttackRelease('F#3', '8n', now + 0.1); melodySynth.triggerAttackRelease('F3', '8n', now + 0.2); melodySynth.triggerAttackRelease('E3', '4n', now + 0.3); },
             win: () => { const now = Tone.now(); melodySynth.triggerAttackRelease('C5', '8n', now); melodySynth.triggerAttackRelease('E5', '8n', now + 0.1); melodySynth.triggerAttackRelease('G5', '8n', now + 0.2); melodySynth.triggerAttackRelease('C6', '4n', now + 0.3); }
         };
@@ -442,8 +500,16 @@
             volume: -12,
         }).toDestination();
         
-        function startBGM() { if (bgmPlayer.loaded && bgmPlayer.state !== 'started' && !Tone.Master.mute) { bgmPlayer.start(); } }
-        function stopBGM() { if(bgmPlayer.state === 'started') { bgmPlayer.stop(); } }
+        function startBGM() { 
+            if (bgmPlayer.loaded && bgmPlayer.state !== 'started' && !Tone.Master.mute) { 
+                bgmPlayer.start(); 
+            } 
+        }
+        function stopBGM() { 
+            if(bgmPlayer.state === 'started') { 
+                bgmPlayer.stop(); 
+            }
+        }
 
         async function initializeFirebase() {
              try {
@@ -594,11 +660,34 @@
             ctx.fillRect(barrierX, barrierY, barrierWidth, 6);
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 1.0;
+             if (player.paddleHit.active) {
+                ctx.save();
+                ctx.globalAlpha = player.paddleHit.alpha;
+                
+                const flashGrad = ctx.createRadialGradient(
+                    player.x + player.width / 2, barrierY + 3, 0,
+                    player.x + player.width / 2, barrierY + 3, (barrierWidth * 1.5)/2
+                );
+                flashGrad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                flashGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = flashGrad;
+
+                const expandedWidth = barrierWidth * 1.5;
+                const expandedX = player.x - (expandedWidth - player.width) / 2;
+                
+                ctx.fillRect(expandedX, barrierY - 2, expandedWidth, 10);
+                ctx.restore();
+            }
         }
 
         function drawBall(ball) {
-            ctx.beginPath();
-            if (ball.isPiercing) {
+            ctx.save();
+            if (ball.isGolden) {
+                 const goldenColor = `hsl(${frameCount % 360}, 100%, 75%)`;
+                 ctx.fillStyle = goldenColor;
+                 ctx.shadowColor = goldenColor;
+                 ctx.shadowBlur = 25;
+            } else if (ball.isPiercing) {
                 const grad = ctx.createRadialGradient(ball.x, ball.y, ball.radius * 0.2, ball.x, ball.y, ball.radius);
                 grad.addColorStop(0, '#FFFFFF');
                 grad.addColorStop(0.7, '#C9A0DC');
@@ -608,78 +697,41 @@
                 ctx.shadowBlur = 20;
             } else {
                 ctx.fillStyle = "#fff";
-                ctx.shadowBlur = 0;
+                ctx.shadowColor = "cyan";
+                ctx.shadowBlur = 10;
             }
+            ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
             ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            if (ball.isPiercing) {
-                 for(let i=0; i<3; i++){
-                    ctx.beginPath();
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.random() * ball.radius + ball.radius;
-                    const particleX = ball.x + Math.cos(angle) * dist;
-                    const particleY = ball.y + Math.sin(angle) * dist;
-                    ctx.arc(particleX, particleY, Math.random() * 2, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(201, 160, 220, ${Math.random() * 0.6})`;
-                    ctx.fill();
-                }
-            }
-            ctx.closePath();
+            ctx.restore();
         }
         function drawBalls() { balls.forEach(drawBall); }
         function drawLasers() { lasers.forEach(l => { ctx.fillStyle = '#ff4d6d'; ctx.fillRect(l.x, l.y, LASER_WIDTH, LASER_HEIGHT); }); }
-        function drawHeart(x, y, size) {
-            ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.moveTo(x, y + size / 4);
-            ctx.quadraticCurveTo(x, y, x + size / 4, y); ctx.quadraticCurveTo(x + size / 2, y, x + size / 2, y + size / 4);
-            ctx.quadraticCurveTo(x + size / 2, y, x + size * 3 / 4, y); ctx.quadraticCurveTo(x + size, y, x + size, y + size / 4);
-            ctx.quadraticCurveTo(x + size, y + size / 2, x + size * 3 / 4, y + size * 3 / 4);
-            ctx.lineTo(x + size / 2, y + size); ctx.lineTo(x + size / 4, y + size * 3 / 4);
-            ctx.quadraticCurveTo(x, y + size / 2, x, y + size / 4); ctx.fill();
-        }
+        
         function drawItems() {
             items.forEach(item => {
-                ctx.font = `${ITEM_SIZE * 0.9}px 'Press Start 2P'`;
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                if (item.type === 'life') { drawHeart(item.x, item.y, ITEM_SIZE); } 
-                else if (item.type === 'multiBall') {
-                    ctx.fillStyle = '#fceb00'; ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#000'; ctx.fillText('B', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
-                } else if (item.type === 'pierce') {
-                    ctx.fillStyle = '#9400d3';
-                    ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#fff'; ctx.fillText('P', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
-                } else if (item.type === 'wideShield') {
-                    ctx.fillStyle = '#32cd32';
-                    ctx.beginPath(); ctx.arc(item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2, ITEM_SIZE / 2, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#fff'; ctx.fillText('W', item.x + ITEM_SIZE / 2, item.y + ITEM_SIZE / 2 + 1);
-                } else if (item.type === 'invincible') {
-                    ctx.fillStyle = '#FFD700';
-                    ctx.save();
-                    ctx.translate(item.x + ITEM_SIZE/2, item.y + ITEM_SIZE/2);
-                    ctx.beginPath();
-                    for(let i=0; i<10; i++){
-                        const angle = i * Math.PI / 5;
-                        const r = i % 2 === 0 ? ITEM_SIZE * 0.5 : ITEM_SIZE * 0.25;
-                        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.restore();
+                const img = itemImages[item.type];
+                let size = itemSizes[item.type] || itemSizes.life; // デフォルトサイズ
+                if (img && img.complete) {
+                    ctx.drawImage(img, item.x, item.y, size, size);
+                } else {
+                    // フォールバック描画
+                    ctx.fillStyle = '#FF00FF'; 
+                    ctx.fillRect(item.x, item.y, size, size);
                 }
             });
         }
         
-        function createExplosion(x, y, color) {
-            for (let i = 0; i < 15; i++) {
+        function createExplosion(x, y, color, count = 15, size = 3) {
+            for (let i = 0; i < count; i++) {
                 particles.push({
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: (Math.random() - 0.5) * 4,
+                    vx: (Math.random() - 0.5) * (size * 1.5),
+                    vy: (Math.random() - 0.5) * (size * 1.5),
                     alpha: 1,
                     color: color,
+                    size: Math.random() * size + 2,
                     lifespan: Math.random() * 30 + 30
                 });
             }
@@ -696,25 +748,78 @@
             }
         }
         
-        function drawInvaderShape(x, y, width, height, color, damage, maxHealth) {
-            ctx.fillStyle = color; 
-            const w = width / 10; 
-            const h = height / 8;
+        function drawInvaderShape(invader) {
+            let color = invader.color;
+            if (level >= 5 && invader.status > 0 && invader.status < invader.maxHealth) {
+                color = "#9370DB";
+            }
+            ctx.fillStyle = color;
+
+            const w = INVADER_WIDTH / 10; 
+            const h = INVADER_HEIGHT / 8;
             const pattern = [ [0,0,1,1,1,1,1,1,0,0],[0,1,1,1,1,1,1,1,1,0],[1,1,1,0,1,1,0,1,1,1],[1,1,1,1,1,1,1,1,1,1],[0,0,1,0,0,0,0,1,0,0],[0,1,0,1,0,0,1,0,1,0],];
-            for (let row = 0; row < pattern.length; row++) { for (let col = 0; col < pattern[row].length; col++) { if (pattern[row][col]) { ctx.fillRect(x + col * w, y + row * h, w, h); } } }
+            for (let row = 0; row < pattern.length; row++) { for (let col = 0; col < pattern[row].length; col++) { if (pattern[row][col]) { ctx.fillRect(invader.x + col * w, invader.y + row * h, w, h); } } }
             
+            const damage = invader.maxHealth - invader.status;
             if(damage > 0) {
-                drawCracks(x, y, width, height, damage);
+                drawCracks(invader.x, invader.y, INVADER_WIDTH, INVADER_HEIGHT, damage);
             }
         }
 
         function drawInvaders() { 
             invaders.forEach(c => c.forEach(i => { 
                 if (i.status > 0) { 
-                    drawInvaderShape(i.x, i.y, INVADER_WIDTH, INVADER_HEIGHT, i.color, i.maxHealth - i.status, i.maxHealth); 
+                    drawInvaderShape(i); 
                 } 
             })); 
         }
+        
+        function drawUFO(ufoToDraw) {
+            if (!ufoToDraw || !ufoToDraw.active) return;
+            const w = ufoToDraw.width / 16;
+            const h = ufoToDraw.height / 8;
+            
+            ctx.fillStyle = '#7CFC00';
+            const dome = [
+                [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+                [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            ];
+            for(let r=0; r<dome.length; r++){
+                 for(let c=0; c<dome[r].length; c++){
+                    if(dome[r][c]){ ctx.fillRect(ufoToDraw.x + c * w, ufoToDraw.y + r*h, w, h); }
+                }
+            }
+
+            ctx.fillStyle = '#C0C0C0';
+            const body = [
+                 [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            ];
+             for(let r=0; r<body.length; r++){
+                 for(let c=0; c<body[r].length; c++){
+                    if(body[r][c]){ ctx.fillRect(ufoToDraw.x + c * w, ufoToDraw.y + (r+2)*h, w, h); }
+                }
+            }
+
+            const lightColor = (frameCount % 10 < 5) ? '#FFD700' : '#FF4500';
+            ctx.fillStyle = lightColor;
+            ctx.fillRect(ufoToDraw.x + 2*w, ufoToDraw.y + 4*h, w*2, h);
+            ctx.fillRect(ufoToDraw.x + 12*w, ufoToDraw.y + 4*h, w*2, h);
+        }
+
+        function drawUfoLasers() {
+            ufoLasers.forEach(laser => {
+                ctx.save();
+                const grad = ctx.createLinearGradient(laser.x, laser.y, laser.x, laser.y + 15);
+                grad.addColorStop(0, 'rgba(255, 50, 50, 1)');
+                grad.addColorStop(0.5, 'rgba(255, 100, 100, 0.5)');
+                grad.addColorStop(1, 'rgba(255, 150, 150, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(laser.x - 2, laser.y, 4, 15);
+                ctx.restore();
+            });
+        }
+        
         function drawStars() {
             if (!stars) {
                 stars = [];
@@ -723,7 +828,7 @@
                         x: Math.random() * LOGICAL_WIDTH,
                         y: Math.random() * LOGICAL_HEIGHT,
                         radius: Math.random() * 1.5,
-                        speed: Math.random() * 0.5 + 0.2
+                        speed: Math.random() * 0.1 + 0.05
                     });
                 }
             }
@@ -747,7 +852,7 @@
                 ctx.beginPath();
                 ctx.fillStyle = p.color;
                 ctx.globalAlpha = p.alpha;
-                ctx.fillRect(p.x, p.y, 3, 3);
+                ctx.fillRect(p.x, p.y, p.size, p.size);
                 p.x += p.vx;
                 p.y += p.vy;
                 p.alpha -= 0.03;
@@ -784,13 +889,16 @@
         }
 
         function resetGame() {
-            score = 0; lives = 3; level = 1; gameStarted = true; gameOver = false;
+            score = 0; lives = 3; level = 1;
             isLevelTransitioning = false;
             lastTime = 0; 
             balls = [];
             particles = [];
-            comboCount = 0;
-            scoreMultiplier = 1;
+            ufo = null;
+            if(ufoSoundPlayer) {
+                ufoSoundPlayer.stop().dispose();
+                ufoSoundPlayer = null;
+            }
             comboMultiplierDisplay = { text: '', alpha: 0, x: 0, y: 0 };
             startNextLevel();
             startBGM();
@@ -798,17 +906,26 @@
 
         function startNextLevel() {
             levelEl.textContent = `LEVEL: ${level}`;
-            invaderSpeed = LOGICAL_WIDTH * (0.0008 + level * 0.00005);
-            player = { x: (LOGICAL_WIDTH - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: LOGICAL_WIDTH * 0.0225, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false };
+            wideShieldDropsThisStage = 0;
+            heartDropsThisStage = 0;
+            invincibleDropsThisStage = 0;
+            multiBallDropsThisStage = 0;
+            pierceDropsThisStage = 0;
+            
+            let levelSpeedMultiplier = Math.pow(1.03, Math.max(0, level - 1)); 
+            invaderSpeed = LOGICAL_WIDTH * (0.06 + level * 0.0025) * levelSpeedMultiplier;
+            player = { x: (LOGICAL_WIDTH - PADDLE_WIDTH) / 2, y: PADDLE_Y, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: LOGICAL_WIDTH * 1.5, shieldWidth: PADDLE_WIDTH * 1.6, shieldEnhanced: false, isInvincible: false, paddleHit: { active: false, alpha: 0 } };
             
             const currentBallCount = balls.length > 0 ? balls.length : 1;
             balls = [];
             for (let i = 0; i < currentBallCount; i++) {
                  const angle = (Math.random() - 0.5) * Math.PI / 3;
-                 balls.push({ x: player.x + PADDLE_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false });
+                 balls.push({ x: player.x + PADDLE_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false, isGolden: false });
             }
             
-            lasers = []; items = []; 
+            lasers = [];
+            ufoLasers = [];
+            items = []; 
             invadersMoveDirection = 1;
             invaderRowDirections = [];
             frameCount = 0;
@@ -839,33 +956,109 @@
             levelStartGracePeriod = true;
             setTimeout(() => { levelStartGracePeriod = false; }, 500);
 
-            let allInvaders = invaders.flat();
+            if ((!ufo || !ufo.active) && Math.random() < 1/7) {
+                 setTimeout(spawnUFO, 10000);
+            }
+            
+            const itemPool = [];
+            for(let i = 0; i < 1; i++) itemPool.push('wideShield');
+            for(let i = 0; i < 3; i++) itemPool.push('life');
+            for(let i = 0; i < 1; i++) itemPool.push('invincible');
+            for(let i = 0; i < 2; i++) itemPool.push('multiBall');
+            for(let i = 0; i < 1; i++) itemPool.push('pierce');
+            
+            const allInvaders = invaders.flat();
             for (let i = allInvaders.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [allInvaders[i], allInvaders[j]] = [allInvaders[j], allInvaders[i]];
             }
-            if(allInvaders.length > 0) allInvaders[0].drop = 'pierce';
-            if(allInvaders.length > 1) allInvaders[1].drop = 'wideShield';
-            if(allInvaders.length > 2) allInvaders[2].drop = 'invincible';
+            
+            for (let i = 0; i < itemPool.length && i < allInvaders.length; i++) {
+                allInvaders[i].drop = itemPool[i];
+            }
             
             updateUI();
         }
         
+        function spawnUFO() {
+            if (ufo && ufo.active) return;
+            const direction = Math.random() < 0.5 ? 1 : -1;
+            ufo = {
+                x: direction === 1 ? -60 : LOGICAL_WIDTH,
+                y: 50,
+                width: 60,
+                height: 30,
+                speed: (LOGICAL_WIDTH + 60) / 8,
+                direction: direction,
+                active: true,
+                shootInterval: null
+            };
+
+            if (ufoSoundPlayer) {
+                ufoSoundPlayer.stop().dispose();
+                ufoSoundPlayer = null;
+            }
+            ufoSoundPlayer = new Tone.Player(ufoBuffer).toDestination();
+            ufoSoundPlayer.loop = true;
+            ufoSoundPlayer.volume.value = -20;
+            ufoSoundPlayer.start();
+
+            ufo.shootInterval = setInterval(() => {
+                if(ufo && ufo.active && gameState === 'PLAYING') {
+                    ufoLasers.push({x: ufo.x + ufo.width/2, y: ufo.y + ufo.height, radius: 10, speed: laserSpeed});
+                    sounds.ufoLaser();
+                }
+            }, 2000);
+
+            ufo.disappearTimeout = setTimeout(() => {
+                if(ufo && ufo.active) {
+                    ufo.active = false;
+                    clearInterval(ufo.shootInterval);
+                    if(ufoSoundPlayer) {
+                        ufoSoundPlayer.stop().dispose();
+                        ufoSoundPlayer = null;
+                    }
+                }
+            }, 8000);
+        }
+        
         function handleGameOver(isWin) {
-            gameOver = true; gameStarted = false; isLevelTransitioning = false;
-            stopBGM();
-            pauseButton.style.display = 'none';
-            pauseScreen.classList.remove('active');
-            isPaused = false;
+            if (gameState === 'GAMEOVER') return;
             
+            gameState = 'GAMEOVER'; 
+            
+            stopBGM();
+            
+            if (ufoSoundPlayer) {
+                ufoSoundPlayer.stop().dispose();
+                ufoSoundPlayer = null;
+            }
+            if (ufo && ufo.shootInterval) clearInterval(ufo.shootInterval);
+            if(ufo && ufo.disappearTimeout) clearTimeout(ufo.disappearTimeout);
+            
+            pauseButton.style.display = 'none';
+            
+            [startScreen, pauseScreen, adScreen].forEach(el => el.classList.remove('active'));
+            gameOverScreen.classList.add('active');
+
             document.getElementById('gameOverTitle').textContent = isWin ? "STAGE CLEAR!" : "GAME OVER";
             if (isWin) sounds.win(); else sounds.gameOver();
-            if (score > highScore) { saveHighScore(score); highScore = score; }
+            
+            if (score > highScore) {
+                const newHighScore = score;
+                highScore = newHighScore;
+                document.getElementById('resultHighScore').textContent = newHighScore;
+                saveHighScore(newHighScore).catch(e => {
+                    console.error("Background score saving failed. Score was saved locally.", e);
+                });
+            } else {
+                 document.getElementById('resultHighScore').textContent = highScore;
+            }
+
             document.getElementById('resultLevel').textContent = level;
             document.getElementById('resultScore').textContent = score;
-            document.getElementById('resultHighScore').textContent = highScore;
             
-            const shareText = encodeURIComponent(`Block Raidersでレベル${level}に到達し、${score}点を獲得！あなたも挑戦してみる？ #ブロックレイダーズ`);
+            const shareText = encodeURIComponent(`Block Raidersでレベル${level}に到達し、${score}点を獲得！あなたも挑戦してみる？ #ブロックレイダーズ #BlockRaiders`);
             const pageUrl = encodeURIComponent(GAME_URL);
             document.getElementById('shareX').href = `https://twitter.com/intent/tweet?text=${shareText}&url=${pageUrl}`;
             document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}&quote=${shareText}`;
@@ -878,14 +1071,13 @@
             const gameOverShareButtons = gameOverScreen.querySelector('.share-buttons');
             if(gameOverShareButtons) gameOverShareButtons.style.display = 'grid';
             
-            gameOverScreen.classList.add('active');
             gameOverCount++;
         }
 
         function updateUI() { scoreEl.textContent = `SCORE: ${score}`; livesEl.innerHTML = `LIVES: ${'❤'.repeat(lives)}`; levelEl.textContent = `LEVEL: ${level}`; }
         
         function update(deltaTime) {
-            if (isLevelTransitioning) return;
+            if (gameState !== 'PLAYING' || isLevelTransitioning) return;
 
             const moveDistance = player.speed * deltaTime;
             if (rightPressed && player.x < LOGICAL_WIDTH - PADDLE_WIDTH) player.x += moveDistance;
@@ -899,34 +1091,39 @@
                 if (ball.y < BALL_RADIUS) {
                     ball.y = BALL_RADIUS;
                     ball.dy = Math.abs(ball.dy);
-                    if (Math.abs(ball.dy) < 0.1) ball.dy = ballSpeed * 0.1;
                 }
                 const barrierTop = player.y - player.height * 0.2;
                 const barrierWidth = player.shieldWidth;
                 const barrierX = player.x - (barrierWidth - player.width) / 2;
-                if (ball.y + BALL_RADIUS > barrierTop && ball.x > barrierX && ball.x < barrierX + barrierWidth) {
+                if (ball.y + ball.radius > barrierTop && ball.x > barrierX && ball.x < barrierX + barrierWidth) {
                     ball.y = barrierTop - BALL_RADIUS;
                     comboCount = 0;
-                    scoreMultiplier = 1;
-                    let collidePoint = (ball.x - (player.x + PADDLE_WIDTH / 2)) / (PADDLE_WIDTH / 2);
+                    sounds.paddleHit();
+                    player.paddleHit.active = true;
+                    player.paddleHit.alpha = 1.0;
+                    let collidePoint = (ball.x - (barrierX + barrierWidth / 2)) / (barrierWidth / 2);
                     let angle = collidePoint * (Math.PI / 3);
                     angle = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, angle));
                     ball.dx = ballSpeed * Math.sin(angle);
                     ball.dy = -Math.max(ballSpeed * Math.cos(angle), ballSpeed * 0.1); 
                 }
-                if (ball.y > LOGICAL_HEIGHT) { balls.splice(i, 1); }
+                if (ball.y > LOGICAL_HEIGHT) { 
+                    if (ball.isGolden) {
+                        balls.forEach(b => b.isGolden = false);
+                    }
+                    balls.splice(i, 1); 
+                }
             }
-            if (balls.length === 0 && gameStarted && !gameOver && !isLevelTransitioning) {
+            if (balls.length === 0 && !isLevelTransitioning) {
                 lives--;
-                comboCount = 0;
-                scoreMultiplier = 1;
                 updateUI();
                 if (lives <= 0) { 
-                    handleGameOver(false); 
+                    handleGameOver(false);
+                    return;
                 } else {
                     sounds.playerHit();
                     const angle = (Math.random() - 0.5) * Math.PI / 3;
-                    balls.push({ x: LOGICAL_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false }); 
+                    balls.push({ x: LOGICAL_WIDTH / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false, isGolden: false }); 
                 }
             }
 
@@ -947,7 +1144,6 @@
                         const invader = invaders[c][r];
                         if (invader.status > 0) {
                             rowExists = true;
-                            allDestroyed = false;
                             firstX_row = Math.min(firstX_row, invader.x);
                             lastX_row = Math.max(lastX_row, invader.x);
                         }
@@ -960,73 +1156,80 @@
             }
             
             if(wallHit) {
-                const descentAmount = (INVADER_HEIGHT / 4) + (level * 0.3);
+                const descentAmount = INVADER_HEIGHT / 2;
                 invaders.forEach(c => c.forEach(i => i.y += descentAmount));
             }
             
-            let reachBottom = false;
-            invaders.forEach((c, colIndex) => c.forEach((invader, rowIndex) => {
-                if (invader.status > 0) {
-                    let moveDirection = (level < 5) ? invadersMoveDirection : invaderRowDirections[rowIndex];
-                    invader.x += invaderSpeed * moveDirection * deltaTime;
-                    if (invader.y + INVADER_HEIGHT > player.y) reachBottom = true;
-                    
-                    for (let i = balls.length - 1; i >= 0; i--) {
-                        const ball = balls[i];
-                        const invaderHitboxX = invader.x + INVADER_WIDTH * INVADER_HITBOX_INSET_X_RATIO;
-                        const invaderHitboxY = invader.y + INVADER_HEIGHT * INVADER_HITBOX_INSET_Y_RATIO;
-                        const invaderHitboxWidth = INVADER_WIDTH * (1 - 2 * INVADER_HITBOX_INSET_X_RATIO);
-                        const invaderHitboxHeight = INVADER_HEIGHT * (1 - 2 * INVADER_HITBOX_INSET_Y_RATIO);
+            for (let c = 0; c < invaders.length; c++) {
+                for (let r = 0; r < invaders[c].length; r++) {
+                    const invader = invaders[c][r];
+                    if (invader.status > 0) {
+                        allDestroyed = false; 
+                        let moveDirection = (level < 5) ? invadersMoveDirection : invaderRowDirections[r];
+                        invader.x += invaderSpeed * moveDirection * deltaTime;
+                        
+                        if (invader.y + INVADER_HEIGHT > player.y) {
+                            handleGameOver(false);
+                            return;
+                        }
+                        
+                        for (let i = balls.length - 1; i >= 0; i--) {
+                            const ball = balls[i];
+                            const invaderHitboxX = invader.x + INVADER_WIDTH * INVADER_HITBOX_INSET_X_RATIO;
+                            const invaderHitboxY = invader.y + INVADER_HEIGHT * INVADER_HITBOX_INSET_Y_RATIO;
+                            const invaderHitboxWidth = INVADER_WIDTH * (1 - 2 * INVADER_HITBOX_INSET_X_RATIO);
+                            const invaderHitboxHeight = INVADER_HEIGHT * (1 - 2 * INVADER_HITBOX_INSET_Y_RATIO);
 
-                        if (ball.x + ball.radius > invaderHitboxX && ball.x - ball.radius < invaderHitboxX + invaderHitboxWidth && ball.y + ball.radius > invaderHitboxY && ball.y - ball.radius < invaderHitboxY + invaderHitboxHeight) {
-                             if (!ball.isPiercing) {
-                                ball.dy *= -1;
-                                ball.dx += (Math.random() - 0.5) * 0.2; 
-                             }
-                             invader.status--;
-                             comboCount++;
-                             
-                            if (comboCount >= 20) scoreMultiplier = 4;
-                            else if (comboCount >= 10) scoreMultiplier = 3;
-                            else if (comboCount >= 5) scoreMultiplier = 2;
-                            else scoreMultiplier = 1;
-
-                            if (scoreMultiplier > 1) {
-                                comboMultiplierDisplay = {
-                                    text: `×${scoreMultiplier}`,
-                                    x: invader.x + INVADER_WIDTH / 2,
-                                    y: invader.y,
-                                    alpha: 1.0
-                                };
-                                clearTimeout(comboMultiplierDisplayTimeout);
-                                comboMultiplierDisplayTimeout = setTimeout(() => {
-                                    if(comboMultiplierDisplay) comboMultiplierDisplay.alpha = 0;
-                                }, 1000);
-                            }
-                             
-                             if(invader.status <= 0){
-                                sounds.destroy();
-                                createExplosion(invader.x + INVADER_WIDTH / 2, invader.y + INVADER_HEIGHT / 2, invader.color);
-                                score += (10 * invader.maxHealth) * scoreMultiplier;
-                                if (invader.drop) {
-                                     items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: invader.drop});
-                                     invader.drop = null;
-                                } else if (Math.random() < ITEM_DROP_CHANCE) {
-                                     const itemType = Math.random() < MULTIBALL_CHANCE && balls.length < 3 ? 'multiBall' : 'life';
-                                     items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: itemType});
+                            if (ball.x + ball.radius > invaderHitboxX && ball.x - ball.radius < invaderHitboxX + invaderHitboxWidth && ball.y + ball.radius > invaderHitboxY && ball.y - ball.radius < invaderHitboxY + invaderHitboxHeight) {
+                                if (!ball.isPiercing && !ball.isGolden) {
+                                    ball.dy *= -1;
+                                    ball.dx += (Math.random() - 0.5) * 0.2; 
                                 }
-                             } else {
-                                sounds.hit();
-                             }
-                             updateUI();
-                             break;
+                                invader.status--;
+                                
+                                let scoreMultiplier = ball.isGolden ? 10 : 1;
+                                if (!ball.isGolden) {
+                                    comboCount++;
+                                    if (comboCount >= 20) scoreMultiplier = 4;
+                                    else if (comboCount >= 10) scoreMultiplier = 3;
+                                    else if (comboCount >= 5) scoreMultiplier = 2;
+                                }
+
+                                if (scoreMultiplier > 1) {
+                                    comboMultiplierDisplay = {
+                                        text: `×${scoreMultiplier}`,
+                                        x: invader.x + INVADER_WIDTH / 2,
+                                        y: invader.y,
+                                        alpha: 1.0
+                                    };
+                                    if (comboMultiplierDisplayTimeout) clearTimeout(comboMultiplierDisplayTimeout);
+                                    comboMultiplierDisplayTimeout = setTimeout(() => {
+                                        if(comboMultiplierDisplay) comboMultiplierDisplay.alpha = 0;
+                                    }, 1000);
+                                }
+
+                                if(invader.status <= 0){
+                                    sounds.destroy();
+                                    createExplosion(invader.x + INVADER_WIDTH / 2, invader.y + INVADER_HEIGHT / 2, invader.color);
+                                    score += (10 * invader.maxHealth) * scoreMultiplier;
+                                    
+                                    if (invader.drop) {
+                                        items.push({x: invader.x + INVADER_WIDTH / 2, y: invader.y, type: invader.drop, size: itemSizes[invader.drop]});
+                                        invader.drop = null;
+                                    }
+                                } else {
+                                    sounds.hit();
+                                    score += 1 * scoreMultiplier;
+                                }
+                                updateUI();
+                                break; 
+                            }
                         }
                     }
                 }
-            }));
+            }
 
-            if(reachBottom) { handleGameOver(false); return; }
-            if(allDestroyed && gameStarted && !gameOver && !isLevelTransitioning) {
+            if(allDestroyed && !isLevelTransitioning) {
                 isLevelTransitioning = true;
                 level++;
                 sounds.win();
@@ -1035,7 +1238,41 @@
             }
 
             frameCount++;
-            if (frameCount % (Math.max(20, 90 - level * 4)) === 0 && Math.random() < (0.15 + level * 0.04)) {
+            if (ufo && ufo.active) {
+                ufo.x += ufo.speed * ufo.direction * deltaTime;
+                for (let i = balls.length - 1; i >= 0; i--) {
+                    const ball = balls[i];
+                    if (ball.x > ufo.x && ball.x < ufo.x + ufo.width && ball.y > ufo.y && ball.y < ufo.y + ufo.height) {
+                        sounds.ufoDestroy();
+                        createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#7CFC00', 50, 5);
+                        ufo.active = false;
+                        clearInterval(ufo.shootInterval);
+                        if(ufoSoundPlayer) {
+                            ufoSoundPlayer.stop().dispose();
+                            ufoSoundPlayer = null;
+                        }
+                        ball.isGolden = true;
+                        balls.forEach(b => { if(b !== ball) b.isGolden = false; });
+                    }
+                }
+            }
+            
+            ufoLasers.forEach((l, i) => {
+                l.y += l.speed * deltaTime;
+                if (l.y > LOGICAL_HEIGHT) ufoLasers.splice(i,1);
+
+                const dx = l.x - (player.x + player.width / 2);
+                const dy = l.y - (player.y + player.height / 2);
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < l.radius + player.width / 2) {
+                     ufoLasers.splice(i, 1);
+                     if (!player.isInvincible) {
+                        lives--; sounds.playerHit(); triggerScreenEffect(); if (lives <= 0) { handleGameOver(false); return; } updateUI();
+                     }
+                }
+            });
+
+            if (frameCount % (Math.max(30, 95 - level * 4)) === 0 && Math.random() < (0.15 + level * 0.025)) {
                 let shooters = []; invaders.forEach(c => { for(let r=INVADER_ROWS-1; r>=0; r--) { if(c[r].status > 0) { shooters.push(c[r]); break; }}});
                 if(shooters.length > 0) { const s = shooters[Math.floor(Math.random() * shooters.length)]; lasers.push({x: s.x + INVADER_WIDTH / 2 - LASER_WIDTH / 2, y: s.y + INVADER_HEIGHT }); sounds.laser(); }
             }
@@ -1047,20 +1284,20 @@
                 const playerHitboxWidth = PADDLE_WIDTH * (1 - 2 * PLAYER_HITBOX_INSET_X_RATIO);
                 const playerHitboxHeight = PADDLE_HEIGHT * (1 - PLAYER_HITBOX_INSET_Y_RATIO);
                 if (l.y + LASER_HEIGHT > playerHitboxY && l.y < playerHitboxY + playerHitboxHeight && l.x + LASER_WIDTH > playerHitboxX && l.x < playerHitboxX + playerHitboxWidth) {
-                     lasers.splice(i, 1); lives--; sounds.playerHit(); triggerScreenEffect(); if (lives <= 0) handleGameOver(false); updateUI();
+                     lasers.splice(i, 1); lives--; sounds.playerHit(); triggerScreenEffect(); if (lives <= 0) { handleGameOver(false); return; } updateUI();
                 }
             });
             items.forEach((item, i) => {
                 item.y += itemSpeed * deltaTime; if (item.y > LOGICAL_HEIGHT) items.splice(i, 1);
-                const itemHitboxX = item.x - ITEM_SIZE / 2;
-                const itemHitboxY = item.y - ITEM_SIZE / 2;
-                if(itemHitboxY + ITEM_SIZE > player.y && itemHitboxY < player.y + PADDLE_HEIGHT && itemHitboxX + ITEM_SIZE > player.x && itemHitboxX < player.x + PADDLE_WIDTH) {
+                const itemHitboxX = item.x - item.size / 2;
+                const itemHitboxY = item.y - item.size / 2;
+                if(itemHitboxY + item.size > player.y && itemHitboxY < player.y + PADDLE_HEIGHT && itemHitboxX + item.size > player.x && itemHitboxX < player.x + PADDLE_WIDTH) {
                      if(item.type === 'life' && lives < 5) { lives++; sounds.getLife(); }
                      else if (item.type === 'multiBall') {
                          sounds.getMultiBall();
-                         if (balls.length < 3) {
-                             const angle = (Math.random() - 0.5) * Math.PI / 3;
-                             balls.push({ x: player.x + player.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false });
+                         if (balls.length < 5) {
+                            const angle = (Math.random() - 0.5) * Math.PI / 3;
+                            balls.push({ x: player.x + player.width / 2, y: player.y - 20, radius: BALL_RADIUS, dx: ballSpeed * Math.sin(angle), dy: -ballSpeed * Math.cos(angle), isPiercing: false, isGolden: false });
                          }
                      } else if (item.type === 'pierce') {
                          sounds.getPierce();
@@ -1084,89 +1321,122 @@
                 }
             });
             
+            if (player.paddleHit.active) {
+                player.paddleHit.alpha -= 5 * deltaTime;
+                if (player.paddleHit.alpha <= 0) {
+                    player.paddleHit.active = false;
+                }
+            }
+
             if (comboMultiplierDisplay && comboMultiplierDisplay.alpha > 0) {
-                 comboMultiplierDisplay.alpha -= 0.01;
+                 comboMultiplierDisplay.alpha -= 0.02;
             }
         }
         
         function draw() {
             if(!ctx) return;
-            const dpr = window.devicePixelRatio || 1;
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0); 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.restore(); 
-
+            ctx.clearRect(0,0,LOGICAL_WIDTH, LOGICAL_HEIGHT);
+            
             drawStars();
-            drawInvaders();
-            drawLasers();
-            drawItems();
-            drawPlayer();
-            drawBalls();
-            drawParticles();
-            drawComboText();
+
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                drawInvaders();
+                drawLasers();
+                drawUfoLasers();
+                drawItems();
+                drawPlayer();
+                drawUFO(ufo);
+                drawBalls();
+                drawParticles();
+                drawComboText();
+            }
         }
         
         let lastTime = 0;
-        function gameLoop(timestamp) {
-            if (!gameStarted || isPaused) {
+        function mainLoop(timestamp) {
+            if (gameState === 'GAMEOVER') {
+                if (animationLoopId) {
+                    cancelAnimationFrame(animationLoopId);
+                    animationLoopId = null;
+                }
                 return;
-            };
-
-            if (!lastTime) lastTime = timestamp;
-            const deltaTime = (timestamp - lastTime) / 16.67;
+            }
             
-            update(deltaTime);
-            draw();
+            animationLoopId = requestAnimationFrame(mainLoop);
 
-            lastTime = timestamp;
-            animationFrameId = requestAnimationFrame(gameLoop);
+            try {
+                switch (gameState) {
+                    case 'START':
+                        ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+                        frameCount++; 
+                        drawStars();
+                        break;
+                    case 'PLAYING':
+                        if (!lastTime) lastTime = timestamp;
+                        let deltaTime = (timestamp - lastTime) / 1000.0;
+                        if (deltaTime > 0.1) deltaTime = 0.1;
+                        
+                        update(deltaTime);
+                        draw();
+                        lastTime = timestamp;
+                        break;
+                    case 'PAUSED':
+                        draw();
+                        lastTime = timestamp; 
+                        break;
+                }
+            } catch (e) {
+                console.error("Critical error in mainLoop, forcing game over:", e);
+                handleGameOver(false);
+            }
         }
 
         function togglePause() {
-            if (!gameStarted || gameOver) return;
+            if (gameState !== 'PLAYING' && gameState !== 'PAUSED') return;
+            
             sounds.buttonClick();
-            isPaused = !isPaused;
-            if (isPaused) {
-                pauseScreen.classList.add('active');
-                pauseButton.innerHTML = '▶';
-                stopBGM();
-                cancelAnimationFrame(animationFrameId);
-            } else {
+            if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
                 pauseScreen.classList.remove('active');
                 pauseButton.innerHTML = '||';
                 startBGM();
-                lastTime = 0; // ポーズ解除時にデルタタイムをリセット
-                requestAnimationFrame(gameLoop);
+                if (ufoSoundPlayer && ufoSoundPlayer.state === 'paused') ufoSoundPlayer.start();
+                lastTime = performance.now();
+            } else {
+                gameState = 'PAUSED';
+                pauseScreen.classList.add('active');
+                pauseButton.innerHTML = '▶';
+                stopBGM();
+                if (ufoSoundPlayer) ufoSoundPlayer.stop();
             }
         }
         
         pauseButton.addEventListener('click', togglePause);
 
         document.addEventListener('keydown', e => { 
-            if (isPaused) return;
+            if (gameState !== 'PLAYING') return;
             if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true; 
         });
         document.addEventListener('keyup', e => { 
-            if (isPaused) return;
+            if (gameState !== 'PLAYING') return;
             if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false; else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false; 
         });
         
         document.addEventListener('mousemove', e => {
-            if(isPaused || !gameStarted || gameOver || !player) return;
+            if(gameState !== 'PLAYING' || !player) return;
             const rect = canvas.getBoundingClientRect();
-            let newX = (e.clientX - rect.left) / rect.width * LOGICAL_WIDTH - (player.width / 2);
-            player.x = Math.max(0, Math.min(newX, LOGICAL_WIDTH - player.width));
+            const targetX = (e.clientX - rect.left) / rect.width * LOGICAL_WIDTH - (player.width / 2);
+            player.x = Math.max(0, Math.min(targetX, LOGICAL_WIDTH - player.width));
         });
 
         canvas.addEventListener('touchstart', e => { 
-            if (isPaused) return;
+            if (gameState !== 'PLAYING') return;
             e.preventDefault(); touchStartX = e.touches[0].clientX; 
         }, { passive: false });
         canvas.addEventListener('touchmove', e => {
-            if(isPaused) return;
+            if(gameState !== 'PLAYING' || !player) return;
             e.preventDefault();
-            if(touchStartX === null || !gameStarted || gameOver || !player) return;
+            if(touchStartX === null ) return;
             const rect = canvas.getBoundingClientRect();
             const currentX = e.touches[0].clientX;
             const diffX = (currentX - touchStartX) * (LOGICAL_WIDTH / rect.width);
@@ -1175,7 +1445,7 @@
             touchStartX = currentX;
         }, { passive: false });
         canvas.addEventListener('touchend', e => { 
-            if (isPaused) return;
+            if (gameState !== 'PLAYING') return;
             e.preventDefault(); touchStartX = null; 
         });
         
@@ -1192,29 +1462,37 @@
         });
 
         startButton.addEventListener('click', async () => { 
-            sounds.buttonClick();
+            if (gameState !== 'START') return;
+            
             if (!audioInitialized) {
                 try {
                     await Tone.start();
                     audioInitialized = true;
-                    console.log("[DEBUG] AudioContext started by user gesture.");
+                    console.log("AudioContext started!");
                 } catch(e) {
                     console.error("[ERROR] Could not start AudioContext on click:", e);
                 }
             }
+             sounds.buttonClick();
+            
+            gameState = 'PLAYING';
             startScreen.classList.remove('active');
             pauseButton.style.display = 'block';
             resetGame();
-            requestAnimationFrame(gameLoop);
+            lastTime = performance.now();
+            if(!animationLoopId) mainLoop();
         });
+        
         restartButton.addEventListener('click', () => {
             sounds.buttonClick();
             gameOverScreen.classList.remove('active');
-            lastTime = 0;
+            
             if (hasSharedEver) {
+                gameState = 'PLAYING';
                 pauseButton.style.display = 'block';
                 resetGame();
-                requestAnimationFrame(gameLoop);
+                lastTime = performance.now();
+                mainLoop();
             } else {
                 playAdSimulation();
             }
@@ -1224,7 +1502,8 @@
             hasSharedEver = true; 
             localStorage.setItem('blockRaidersShared', 'true');
             bottomBannerAd.style.display = 'none';
-            appContainer.classList.remove('with-banner');
+            document.body.classList.remove('with-banner');
+            resizeCanvas(); 
             clearInterval(bannerInterval);
         }
 
@@ -1232,7 +1511,7 @@
         
         function playAdSimulation() {
             adScreen.classList.add('active');
-            const ad1 = `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+5YZ75" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www23.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001003000&mc=1"></a><img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+5YZ75" alt="">`;
+            const ad1 = `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+5YZ75" rel="nofollow" target="_blank"><img border="0" width="300" height="250" alt="" src="https://www23.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001003000&mc=1"></a><img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+5YZ75" alt="">`;
             const ad2 = `<a href="https://click.duga.jp/aff/48328-01" target="_blank"><img src="https://ad.duga.jp/banner/aff/300-250.gif" alt="APEX アフィリエイト システム"></a>`;
             adContainer.innerHTML = (gameOverCount % 2 !== 0) ? ad1 : ad2;
 
@@ -1253,9 +1532,11 @@
 
         adRestartButton.addEventListener('click', () => {
             adScreen.classList.remove('active');
+            gameState = 'PLAYING';
             pauseButton.style.display = 'block';
             resetGame();
-            requestAnimationFrame(gameLoop);
+            lastTime = performance.now();
+            mainLoop();
         });
         
         function resizeCanvas() {
@@ -1284,27 +1565,35 @@
             gameContainer.style.width = `${newWidth}px`;
             gameContainer.style.height = `${newHeight}px`;
             
-            if(newWidth < contentWidth) {
-                uiContainer.style.width = `${newWidth}px`;
-            } else {
-                 uiContainer.style.width = `${contentWidth}px`;
+            canvas.style.width = `${newWidth}px`;
+            canvas.style.height = `${newHeight}px`;
+            const logoImage = document.getElementById('logo-image');
+            if (logoImage) {
+                logoImage.style.width = `${newWidth * 0.8}px`;
+                logoImage.style.height = 'auto';
             }
 
 
             const dpr = window.devicePixelRatio || 1;
-            canvas.width = LOGICAL_WIDTH * dpr;
-            canvas.height = LOGICAL_HEIGHT * dpr;
+            canvas.width = LOGICAL_WIDTH;
+            canvas.height = LOGICAL_HEIGHT;
             
-            if(ctx) {
-                ctx.scale(dpr, dpr);
-            }
-
             PADDLE_WIDTH = LOGICAL_WIDTH * PADDLE_WIDTH_RATIO;
             PADDLE_HEIGHT = LOGICAL_HEIGHT * PADDLE_HEIGHT_RATIO;
             BALL_RADIUS = LOGICAL_WIDTH * BALL_RADIUS_RATIO;
             LASER_WIDTH = LOGICAL_WIDTH * LASER_WIDTH_RATIO;
             LASER_HEIGHT = LOGICAL_HEIGHT * LASER_HEIGHT_RATIO;
-            ITEM_SIZE = LOGICAL_WIDTH * ITEM_SIZE_RATIO;
+            
+            const baseItemSize = LOGICAL_WIDTH * BASE_ITEM_SIZE_RATIO;
+            itemSizes = {
+                life: baseItemSize,
+                pierce: baseItemSize * 1.2,
+                multiBall: baseItemSize * 1.2,
+                wideShield: baseItemSize * 1.3,
+                invincible: baseItemSize / 1.2
+            };
+
+
             PADDLE_Y = LOGICAL_HEIGHT - PADDLE_HEIGHT * 2.5;
 
             INVADER_WIDTH = LOGICAL_WIDTH * 0.075;
@@ -1313,16 +1602,16 @@
             INVADER_OFFSET_TOP = LOGICAL_HEIGHT * 0.083;
             INVADER_OFFSET_LEFT = (LOGICAL_WIDTH - (INVADER_COLS * (INVADER_WIDTH + INVADER_PADDING))) / 2;
             
-            ballSpeed = LOGICAL_HEIGHT * BASE_SPEED;
-            laserSpeed = LOGICAL_HEIGHT * BASE_SPEED;
-            itemSpeed = LOGICAL_HEIGHT * (BASE_SPEED / 2.5);
+            ballSpeed = LOGICAL_HEIGHT * 0.75 * 1.1;
+            laserSpeed = LOGICAL_HEIGHT * 0.5;
+            itemSpeed = LOGICAL_HEIGHT * 0.2;
         }
         
         window.onresize = resizeCanvas;
         
         const bannerAds = [
-            `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+5ZU29" rel="nofollow"><img border="0" width="320" height="50" alt="" src="https://www20.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001007000&mc=1"></a><img border="0" width="1" height="1" src="https://www10.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+5ZU29" alt="">`,
-            `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+601S1" rel="nofollow"><img border="0" width="320" height="50" alt="" src="https://www21.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001008000&mc=1"></a><img border="0" width="1" height="1" src="https://www17.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+601S1" alt="">`
+            `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+5ZU29" rel="nofollow" target="_blank"><img border="0" width="320" height="50" alt="" src="https://www20.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001007000&mc=1"></a><img border="0" width="1" height="1" src="https://www10.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+5ZU29" alt="">`,
+            `<a href="https://px.a8.net/svt/ejp?a8mat=457IC4+7RTRVE+5PZK+601S1" rel="nofollow" target="_blank"><img border="0" width="320" height="50" alt="" src="https://www21.a8.net/svt/bgt?aid=250613140470&wid=002&eno=01&mid=s00000026696001008000&mc=1"></a><img border="0" width="1" height="1" src="https://www17.a8.net/0.gif?a8mat=457IC4+7RTRVE+5PZK+601S1" alt="">`
         ];
         let currentAdIndex = 0;
         let bannerInterval;
@@ -1331,8 +1620,8 @@
             if(hasSharedEver) return;
             bannerContent.innerHTML = bannerAds[currentAdIndex];
             bottomBannerAd.style.display = 'flex';
-            appContainer.classList.add('with-banner');
-            resizeCanvas(); // 広告表示後にリサイズを実行
+            document.body.classList.add('with-banner');
+            resizeCanvas(); 
             currentAdIndex = (currentAdIndex + 1) % bannerAds.length;
         }
         
@@ -1345,8 +1634,8 @@
         if(closeBannerBtn) {
             closeBannerBtn.addEventListener('click', () => {
                 bottomBannerAd.style.display = 'none';
-                appContainer.classList.remove('with-banner');
-                resizeCanvas(); // 広告非表示後にリサイズを実行
+                document.body.classList.remove('with-banner');
+                resizeCanvas(); 
                 clearInterval(bannerInterval);
             });
         }
@@ -1362,19 +1651,39 @@
                 return;
             }
             resizeCanvas(); 
-            drawStars();
             
             console.log("[DEBUG] Initializing BGM & SFX loading...");
             startButton.disabled = true;
             try {
+                 const imagePromises = Object.entries(ICON_URLS).map(([key, url]) => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = "Anonymous"; 
+                        img.onload = () => {
+                            itemImages[key] = img;
+                            resolve();
+                        };
+                        img.onerror = () => {
+                             console.error(`Failed to load item image: ${key}`);
+                             resolve(); 
+                        };
+                        img.src = url;
+                    });
+                });
+
                  await Promise.all([
+                    ...imagePromises,
                     bgmPlayer.load(BGM_URL),
                     new Promise(res => { buttonClickBuffer = new Tone.Buffer(BUTTON_CLICK_URL, res); }),
                     new Promise(res => { hitBuffer = new Tone.Buffer(ENEMY_HIT_URL, res); }),
                     new Promise(res => { destroyBuffer = new Tone.Buffer(ENEMY_DEATH_URL, res); }),
                     new Promise(res => { playerHitBuffer = new Tone.Buffer(PLAYER_HIT_URL, res); }),
+                    new Promise(res => { paddleHitBuffer = new Tone.Buffer(PADDLE_HIT_URL, res); }),
                     new Promise(res => { healBuffer = new Tone.Buffer(HEAL_URL, res); }),
-                    new Promise(res => { itemBuffer = new Tone.Buffer(POWERUP_URL, res); })
+                    new Promise(res => { itemBuffer = new Tone.Buffer(POWERUP_URL, res); }),
+                    new Promise(res => { ufoBuffer = new Tone.Buffer(UFO_URL, res); }),
+                    new Promise(res => { ufoLaserBuffer = new Tone.Buffer(UFO_LASER_URL, res); }),
+                    new Promise(res => { ufoDestroyBuffer = new Tone.Buffer(UFO_DEATH_URL, res); })
                 ]);
                 console.log("[DEBUG] All audio buffers loaded successfully.");
                 startButton.disabled = false;
@@ -1387,8 +1696,9 @@
                 startButton.textContent = "START (NO SOUND)";
                 startButton.disabled = false;
             }
+            
+            mainLoop();
         }
-
         initGame();
     });
 
